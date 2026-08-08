@@ -3,3 +3,4 @@ requests
 supabase
 pillow
 pyzbar
+extra-streamlit-components
