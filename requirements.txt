@@ -1,4 +1,5 @@
-streamlit
-supabase
+streamlit>=1.36
 requests
-pandas
+supabase
+pillow
+pyzbar
