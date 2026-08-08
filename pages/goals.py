@@ -98,29 +98,32 @@ def render(user_id, profile):
 
         if st.button("Use these targets", type="primary"):
 
-            save_profile(
-                user_id,
-                {
-                    "age": age,
-                    "sex": sex,
-                    "height_cm": height,
-                    "weight_kg": weight,
-                    "goal": (
-                        "lose_weight" if goal == "Lose weight"
-                        else "gain_weight" if goal == "Gain weight"
-                        else "maintain"
-                    ),
-                    "activity_level": activity.lower().replace(" ", "_"),
-                    "calorie_target": calc["calories"],
-                    "protein_target": calc["protein"],
-                    "carb_target": calc["carbs"],
-                    "fat_target": calc["fat"],
-                    "weekly_weight_change": weekly_change,
-                },
-            )
+            try:
+                save_profile(
+                    user_id,
+                    {
+                        "age": int(age),
+                        "sex": sex,
+                        "height_cm": float(height),
+                        "weight_kg": float(weight),
+                        "goal": (
+                            "lose_weight" if goal == "Lose weight"
+                            else "gain_weight" if goal == "Gain weight"
+                            else "maintain"
+                        ),
+                        "activity_level": activity.lower().replace(" ", "_"),
+                        "calorie_target": int(calc["calories"]),
+                        "protein_target": int(calc["protein"]),
+                        "carb_target": int(calc["carbs"]),
+                        "fat_target": int(calc["fat"]),
+                        "weekly_weight_change": float(weekly_change),
+                    },
+                )
+                st.success("Your targets have been saved.")
+                st.rerun()
 
-            st.success("Your targets have been saved.")
-            st.rerun()
+            except Exception as e:
+                st.error(f"Couldn't save your targets: {e}")
 
     st.divider()
     st.subheader("Or set them manually")
@@ -154,19 +157,22 @@ def render(user_id, profile):
 
     if st.button("Save manual targets"):
 
-        save_profile(
-            user_id,
-            {
-                "age": age,
-                "sex": sex,
-                "height_cm": height,
-                "weight_kg": weight,
-                "calorie_target": manual_calories,
-                "protein_target": manual_protein,
-                "carb_target": manual_carbs,
-                "fat_target": manual_fat,
-            },
-        )
+        try:
+            save_profile(
+                user_id,
+                {
+                    "age": int(age),
+                    "sex": sex,
+                    "height_cm": float(height),
+                    "weight_kg": float(weight),
+                    "calorie_target": float(manual_calories),
+                    "protein_target": float(manual_protein),
+                    "carb_target": float(manual_carbs),
+                    "fat_target": float(manual_fat),
+                },
+            )
+            st.success("Your goals have been updated.")
+            st.rerun()
 
-        st.success("Your goals have been updated.")
-        st.rerun()
+        except Exception as e:
+            st.error(f"Couldn't save your goals: {e}")
