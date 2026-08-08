@@ -11,531 +11,240 @@ from supabase import create_client, Client
 
 st.set_page_config(
     page_title="Macro",
-    page_icon="🥗",
-    layout="centered",
-    initial_sidebar_state="collapsed",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# CUSTOM CSS — MOBILE-FIRST DESIGN SYSTEM
+# CUSTOM CSS
 # ============================================================
+#
+# Design system
+# --------------
+# Background   #FAFAFA (page)  /  #FFFFFF (surfaces)
+# Text         #111111 (primary) / #6B6B6B (muted)
+# Border       #E4E4E4
+# Accent       #111111 (monochrome — used only for primary actions
+#              and the active nav state, never decoratively)
+# Type         Inter for UI text, system fallback stack
+# Radius       6px — small and consistent, not "app-like" bubble corners
+# Shadow       none. Structure comes from a 1px border, not elevation.
+#
+# Mobile-first: base rules target narrow viewports; the >768px block
+# only adds breathing room, it never changes structure.
 
 st.markdown(
     """
     <style>
 
-    /* =========================================================
-       DESIGN TOKENS
-       ========================================================= */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     :root {
-        --bg: #f5f6f2;
-        --surface: #ffffff;
-        --surface-soft: #eef1eb;
-        --surface-muted: #f8f9f7;
-        --ink: #182019;
-        --ink-soft: #566057;
-        --muted: #7a837c;
-        --line: #e1e5df;
-        --line-strong: #d2d8d0;
-        --primary: #5d7f61;
-        --primary-dark: #45664b;
-        --primary-soft: #e3ece2;
-        --accent: #e89b57;
-        --danger: #c95d57;
-        --radius-sm: 10px;
-        --radius-md: 16px;
-        --radius-lg: 22px;
-        --shadow-sm: 0 1px 2px rgba(24, 32, 25, 0.04);
-        --shadow-md: 0 8px 28px rgba(24, 32, 25, 0.07);
+        --bg: #FAFAFA;
+        --surface: #FFFFFF;
+        --border: #E4E4E4;
+        --text: #111111;
+        --text-muted: #6B6B6B;
+        --text-faint: #A3A3A3;
+        --accent: #111111;
+        --radius: 6px;
     }
 
-    /* =========================================================
-       GLOBAL APP
-       ========================================================= */
-
-    html, body, [class*="css"] {
-        font-family:
-            Inter,
-            ui-sans-serif,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            sans-serif;
-        color: var(--ink);
+    * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont,
+            'Segoe UI', Roboto, sans-serif !important;
     }
+
+    /* ---------- GLOBAL ---------- */
 
     .stApp {
         background: var(--bg);
     }
 
-    [data-testid="stAppViewContainer"] {
-        background:
-            radial-gradient(
-                circle at 100% 0%,
-                rgba(93, 127, 97, 0.08),
-                transparent 28rem
-            ),
-            var(--bg);
+    .block-container {
+        max-width: 720px;
+        padding-top: 1.5rem;
+        padding-bottom: 5rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 
-    .main .block-container {
-        max-width: 1080px;
-        padding: 1.25rem 1rem 6rem;
-    }
-
-    /* Remove Streamlit's excess top whitespace */
-    [data-testid="stAppViewBlockContainer"] {
-        padding-top: 0.75rem;
-    }
-
-    /* Hide the default decoration/header chrome where possible */
-    [data-testid="stHeader"] {
-        background: transparent;
-    }
-
-    /* =========================================================
-       TYPOGRAPHY
-       ========================================================= */
-
-    h1, h2, h3 {
-        color: var(--ink) !important;
-        letter-spacing: -0.035em !important;
-    }
-
-    h1 {
-        font-size: clamp(1.9rem, 7vw, 2.75rem) !important;
-        line-height: 1.05 !important;
-        font-weight: 780 !important;
-        margin: 0 0 0.35rem !important;
-    }
-
-    h2 {
-        font-size: clamp(1.35rem, 5vw, 1.8rem) !important;
-        line-height: 1.15 !important;
-        font-weight: 720 !important;
-    }
-
-    h3 {
-        font-size: 1.05rem !important;
-        line-height: 1.25 !important;
-        font-weight: 700 !important;
-    }
-
-    p, label, .stCaption {
-        color: var(--ink-soft);
-    }
-
-    [data-testid="stCaptionContainer"] {
-        color: var(--muted);
-    }
-
-    hr {
-        border: 0 !important;
-        border-top: 1px solid var(--line) !important;
-        margin: 1.5rem 0 !important;
-    }
-
-    /* =========================================================
-       SIDEBAR — DESKTOP DRAWER / MOBILE MENU
-       ========================================================= */
+    /* ---------- SIDEBAR ---------- */
 
     section[data-testid="stSidebar"] {
-        background: #182019;
-        border-right: 0;
-    }
-
-    section[data-testid="stSidebar"] > div {
-        background: #182019;
-        padding: 1.1rem 0.85rem;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
     }
 
     section[data-testid="stSidebar"] * {
-        color: #f7faf5 !important;
+        color: var(--text) !important;
+    }
+
+    section[data-testid="stSidebar"] .stCaption,
+    section[data-testid="stSidebar"] small {
+        color: var(--text-muted) !important;
     }
 
     section[data-testid="stSidebar"] hr {
-        border-top-color: rgba(255,255,255,0.10) !important;
+        border-color: var(--border);
     }
 
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1 {
-        color: #ffffff !important;
-        font-size: 1.65rem !important;
-        margin-bottom: 0.1rem !important;
+    /* Sidebar radio acting as nav */
+
+    section[data-testid="stSidebar"] div[role="radiogroup"] label {
+        border-radius: var(--radius);
+        padding: 8px 10px;
+        margin-bottom: 2px;
     }
 
-    /* Navigation radio */
-    section[data-testid="stSidebar"] [role="radiogroup"] {
-        gap: 0.35rem;
+    /* ---------- HEADINGS ---------- */
+
+    h1 {
+        font-size: 1.75rem !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.02em;
+        color: var(--text);
     }
 
-    section[data-testid="stSidebar"] [role="radiogroup"] > label {
-        border-radius: 13px;
-        padding: 0.75rem 0.85rem;
-        transition: background 0.15s ease;
+    h2 {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        color: var(--text);
     }
 
-    section[data-testid="stSidebar"] [role="radiogroup"] > label:hover {
-        background: rgba(255,255,255,0.08);
+    h3 {
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: var(--text);
     }
 
-    section[data-testid="stSidebar"] [role="radiogroup"] > label[data-checked="true"] {
-        background: rgba(255,255,255,0.13);
+    p, span, label, div {
+        color: var(--text);
     }
 
-    /* =========================================================
-       BUTTONS
-       ========================================================= */
-
-    .stButton > button {
-        width: 100%;
-        min-height: 46px;
-        border-radius: 13px;
-        border: 1px solid var(--line);
-        background: var(--surface);
-        color: var(--ink);
-        font-size: 0.93rem;
-        font-weight: 680;
-        box-shadow: var(--shadow-sm);
-        transition:
-            transform 0.12s ease,
-            box-shadow 0.12s ease,
-            background 0.12s ease;
+    .stCaption, small {
+        color: var(--text-muted) !important;
     }
 
-    .stButton > button:hover {
-        border-color: var(--line-strong);
-        box-shadow: var(--shadow-md);
-        transform: translateY(-1px);
+    /* ---------- DIVIDERS ---------- */
+
+    hr {
+        border-color: var(--border) !important;
+        margin: 1.25rem 0 !important;
     }
 
-    .stButton > button:active {
-        transform: translateY(0);
-    }
-
-    .stButton > button[kind="primary"] {
-        background: var(--primary);
-        border-color: var(--primary);
-        color: #ffffff;
-        box-shadow: 0 7px 18px rgba(93, 127, 97, 0.22);
-    }
-
-    .stButton > button[kind="primary"]:hover {
-        background: var(--primary-dark);
-        border-color: var(--primary-dark);
-    }
-
-    /* Sidebar buttons */
-    section[data-testid="stSidebar"] .stButton > button {
-        background: rgba(255,255,255,0.07);
-        border-color: rgba(255,255,255,0.10);
-        color: #fff;
-        box-shadow: none;
-    }
-
-    /* =========================================================
-       INPUTS
-       ========================================================= */
-
-    input,
-    textarea,
-    [data-baseweb="select"] > div,
-    [data-testid="stNumberInput"] > div {
-        border-radius: 13px !important;
-    }
-
-    input,
-    textarea {
-        background: var(--surface) !important;
-    }
-
-    [data-baseweb="select"] > div {
-        background: var(--surface) !important;
-        border-color: var(--line) !important;
-    }
-
-    input:focus,
-    textarea:focus {
-        border-color: var(--primary) !important;
-        box-shadow: 0 0 0 3px rgba(93, 127, 97, 0.12) !important;
-    }
-
-    [data-testid="stTextInput"] label,
-    [data-testid="stNumberInput"] label,
-    [data-testid="stSelectbox"] label {
-        font-size: 0.82rem;
-        font-weight: 650;
-        color: var(--ink-soft) !important;
-        margin-bottom: 0.25rem;
-    }
-
-    /* =========================================================
-       TABS
-       ========================================================= */
-
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 0.25rem;
-        background: var(--surface-soft);
-        padding: 0.3rem;
-        border-radius: 14px;
-        overflow-x: auto;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        min-height: 42px;
-        border-radius: 10px;
-        padding: 0.45rem 0.8rem;
-        color: var(--ink-soft);
-        font-weight: 650;
-        white-space: nowrap;
-    }
-
-    .stTabs [aria-selected="true"] {
-        background: var(--surface);
-        color: var(--ink) !important;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .stTabs [data-baseweb="tab-highlight"] {
-        display: none;
-    }
-
-    /* =========================================================
-       METRIC CARDS
-       ========================================================= */
+    /* ---------- METRIC CARDS ---------- */
 
     div[data-testid="metric-container"] {
         background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        box-shadow: var(--shadow-sm);
-        min-height: 108px;
-    }
-
-    div[data-testid="metric-container"] label {
-        color: var(--muted) !important;
-        font-size: 0.78rem;
-        font-weight: 650;
-    }
-
-    div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-        color: var(--ink) !important;
-        font-size: clamp(1.35rem, 6vw, 1.9rem);
-        font-weight: 780;
-        letter-spacing: -0.035em;
-    }
-
-    div[data-testid="metric-container"] [data-testid="stMetricDelta"] {
-        font-size: 0.78rem;
-        font-weight: 600;
-    }
-
-    /* =========================================================
-       PROGRESS
-       ========================================================= */
-
-    [data-testid="stProgress"] > div > div {
-        height: 9px;
-        border-radius: 999px;
-        background: #dfe5dc;
-    }
-
-    [data-testid="stProgress"] > div > div > div {
-        border-radius: 999px;
-        background: var(--primary);
-    }
-
-    /* =========================================================
-       CONTAINERS / CARDS
-       ========================================================= */
-
-    [data-testid="stVerticalBlockBorderWrapper"] {
-        background: var(--surface);
-        border: 1px solid var(--line) !important;
-        border-radius: var(--radius-md) !important;
-        box-shadow: var(--shadow-sm);
-        padding: 0.2rem;
-    }
-
-    .food-card {
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        margin-bottom: 0.7rem;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .food-name {
-        color: var(--ink);
-        font-weight: 720;
-        font-size: 0.98rem;
-        line-height: 1.25;
-    }
-
-    .food-meta {
-        color: var(--muted);
-        font-size: 0.82rem;
-        margin-top: 0.25rem;
-    }
-
-    /* =========================================================
-       ALERTS / STATUS
-       ========================================================= */
-
-    [data-testid="stAlert"] {
-        border-radius: 13px;
-        border: 1px solid var(--line);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
         box-shadow: none;
     }
 
-    /* =========================================================
-       LOGIN SCREEN
-       ========================================================= */
-
-    .login-shell {
-        max-width: 430px;
-        margin: 7vh auto 0;
+    div[data-testid="metric-container"] label {
+        color: var(--text-muted) !important;
+        font-size: 0.75rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
     }
 
-    .login-brand {
-        text-align: center;
-        margin-bottom: 1.75rem;
+    div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+        font-weight: 600;
+        font-size: 1.35rem;
+        color: var(--text);
     }
 
-    .login-icon {
-        width: 62px;
-        height: 62px;
-        margin: 0 auto 1rem;
-        display: grid;
-        place-items: center;
-        border-radius: 18px;
-        background: var(--primary-soft);
-        font-size: 1.8rem;
-        box-shadow: var(--shadow-sm);
+    div[data-testid="metric-container"] [data-testid="stMetricDelta"] {
+        font-size: 0.75rem;
     }
 
-    .login-brand h1 {
-        margin-bottom: 0.25rem !important;
+    /* ---------- CONTAINERS / BORDERED BLOCKS ---------- */
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-color: var(--border) !important;
+        border-radius: var(--radius) !important;
+        background: var(--surface);
     }
 
-    .login-brand p {
-        margin: 0;
-        color: var(--muted);
+    /* ---------- BUTTONS ---------- */
+
+    .stButton > button {
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        font-weight: 500;
+        min-height: 40px;
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: none;
     }
 
-    /* =========================================================
-       MOBILE-FIRST LAYOUT
-       ========================================================= */
+    .stButton > button:hover {
+        border-color: var(--text);
+        color: var(--text);
+    }
 
-    @media (max-width: 768px) {
+    .stButton > button[kind="primary"] {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--surface);
+    }
 
-        .main .block-container {
-            max-width: 100%;
-            padding: 0.8rem 0.8rem 5rem;
-        }
+    .stButton > button[kind="primary"]:hover {
+        opacity: 0.85;
+    }
 
-        [data-testid="stAppViewBlockContainer"] {
-            padding-top: 0.45rem;
+    /* ---------- INPUTS ---------- */
+
+    input, textarea, select {
+        border-radius: var(--radius) !important;
+        border-color: var(--border) !important;
+    }
+
+    .stTextInput label, .stNumberInput label, .stSelectbox label {
+        font-size: 0.8rem !important;
+        font-weight: 500 !important;
+        color: var(--text-muted) !important;
+    }
+
+    /* ---------- TABS ---------- */
+
+    button[data-baseweb="tab"] {
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    /* ---------- PROGRESS ---------- */
+
+    .stProgress > div > div {
+        background: var(--accent) !important;
+    }
+
+    .stProgress > div {
+        background: var(--border) !important;
+    }
+
+    /* ---------- ALERTS ---------- */
+
+    div[data-testid="stAlert"] {
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+    }
+
+    /* ---------- MOBILE ---------- */
+
+    @media (min-width: 768px) {
+
+        .block-container {
+            padding-top: 2.5rem;
         }
 
         h1 {
-            font-size: 1.85rem !important;
+            font-size: 2rem !important;
         }
 
-        h2 {
-            font-size: 1.35rem !important;
-        }
-
-        h3 {
-            font-size: 1rem !important;
-        }
-
-        /* Stack Streamlit columns by making their contents comfortable */
-        [data-testid="column"] {
-            min-width: 0 !important;
-        }
-
-        /* Metrics become a compact 2x2 grid */
-        div[data-testid="metric-container"] {
-            min-height: 94px;
-            padding: 0.8rem;
-            border-radius: 15px;
-        }
-
-        div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-            font-size: 1.35rem;
-        }
-
-        /* Make every important action thumb-friendly */
-        .stButton > button {
-            min-height: 48px;
-        }
-
-        input,
-        [data-baseweb="select"] > div {
-            min-height: 46px;
-        }
-
-        /* Keep tabs usable with a thumb */
-        .stTabs [data-baseweb="tab-list"] {
-            scrollbar-width: none;
-        }
-
-        .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
-            display: none;
-        }
-
-        /* Tighter cards */
-        [data-testid="stVerticalBlockBorderWrapper"] {
-            border-radius: 15px !important;
-        }
-
-        /* Login */
-        .login-shell {
-            margin: 5vh auto 0;
-        }
-    }
-
-    /* =========================================================
-       SMALL PHONES
-       ========================================================= */
-
-    @media (max-width: 430px) {
-
-        .main .block-container {
-            padding-left: 0.7rem;
-            padding-right: 0.7rem;
-        }
-
-        div[data-testid="metric-container"] {
-            padding: 0.7rem;
-        }
-
-        div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-            font-size: 1.2rem;
-        }
-
-        .stTabs [data-baseweb="tab"] {
-            padding-left: 0.65rem;
-            padding-right: 0.65rem;
-            font-size: 0.82rem;
-        }
-    }
-
-    /* =========================================================
-       REDUCE MOTION FOR ACCESSIBILITY
-       ========================================================= */
-
-    @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-            scroll-behavior: auto !important;
-            transition: none !important;
-        }
     }
 
     </style>
@@ -580,14 +289,13 @@ def login_screen():
     st.markdown(
         """
         <div style="
-            max-width:460px;
-            margin:80px auto;
+            max-width:380px;
+            margin:64px auto 32px auto;
             text-align:center;
         ">
-            <div style="font-size:3rem;">🥗</div>
-            <h1>Macro</h1>
-            <p style="color:#737780;">
-                Your personal nutrition tracker.
+            <h1 style="margin-bottom:4px;">Macro</h1>
+            <p style="color:#6B6B6B; font-size:0.9rem;">
+                Track what you eat.
             </p>
         </div>
         """,
@@ -669,7 +377,7 @@ def login_screen():
                     st.session_state.session = response.session
                     st.session_state.user = response.user
 
-                    st.success("Account created!")
+                    st.success("Account created.")
                     st.rerun()
 
                 else:
@@ -1027,7 +735,7 @@ def cache_food(product):
 
 def dashboard(profile):
 
-    st.title("Good to see you 👋")
+    st.title("Overview")
 
     st.caption(
         date.today().strftime(
@@ -1095,7 +803,7 @@ def dashboard(profile):
         for x in logs
     )
 
-    st.subheader("Today's overview")
+    st.subheader("Today")
 
     c1, c2, c3, c4 = st.columns(4)
 
@@ -1130,6 +838,12 @@ def dashboard(profile):
     st.write("")
 
     if target_calories:
+
+        st.markdown(
+            '<div class="progress-label">Calories consumed</div>',
+            unsafe_allow_html=True,
+        )
+
         st.progress(
             min(
                 total_calories
@@ -1140,7 +854,7 @@ def dashboard(profile):
 
     st.divider()
 
-    st.subheader("Today's meals")
+    st.subheader("Meals")
 
     meals = [
         ("breakfast", "Breakfast"),
@@ -1198,7 +912,7 @@ def dashboard(profile):
                     with cols[2]:
 
                         if st.button(
-                            "×",
+                            "Remove",
                             key=f"delete_{item['id']}",
                         ):
 
@@ -1228,7 +942,7 @@ def dashboard(profile):
 
 def goals_page(profile):
 
-    st.title("Your goals")
+    st.title("Goals")
     st.caption(
         "Calculate your targets or set them manually."
     )
@@ -1311,7 +1025,7 @@ def goals_page(profile):
     profile_weight = weight
 
     if st.button(
-        "🧮 Calculate my targets",
+        "Calculate my targets",
         type="primary",
     ):
 
@@ -1569,9 +1283,9 @@ def add_food_page():
 
     tab_search, tab_barcode, tab_quick = st.tabs(
         [
-            "🔎 Search",
-            "▣ Barcode",
-            "⚡ Quick add",
+            "Search",
+            "Barcode",
+            "Quick add",
         ]
     )
 
@@ -1804,7 +1518,7 @@ def add_food_page():
 
         st.info(
             "For now, enter the barcode manually. "
-            "We'll add camera scanning next."
+            "Camera scanning is coming next."
         )
 
         barcode = st.text_input(
@@ -1961,7 +1675,7 @@ if profile is None:
 with st.sidebar:
 
     st.markdown(
-        "# 🥗 Macro"
+        "### Macro"
     )
 
     st.caption(
@@ -1973,9 +1687,9 @@ with st.sidebar:
     page = st.radio(
         "Navigation",
         [
-            "🏠 Dashboard",
-            "➕ Add Food",
-            "🎯 Goals",
+            "Dashboard",
+            "Add food",
+            "Goals",
         ],
         label_visibility="collapsed",
     )
@@ -1999,14 +1713,14 @@ with st.sidebar:
 # ROUTING
 # ============================================================
 
-if page == "🏠 Dashboard":
+if page == "Dashboard":
 
     dashboard(profile)
 
-elif page == "➕ Add Food":
+elif page == "Add food":
 
     add_food_page()
 
-elif page == "🎯 Goals":
+elif page == "Goals":
 
     goals_page(profile)
