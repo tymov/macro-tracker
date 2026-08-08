@@ -20,16 +20,20 @@ st.set_page_config(
 # CUSTOM CSS
 # ============================================================
 #
-# Design system
-# --------------
-# Background   #FAFAFA (page)  /  #FFFFFF (surfaces)
-# Text         #111111 (primary) / #6B6B6B (muted)
-# Border       #E4E4E4
-# Accent       #111111 (monochrome — used only for primary actions
-#              and the active nav state, never decoratively)
+# Design system — hardcoded, does not follow the browser/OS
+# light-dark preference. Paired with .streamlit/config.toml
+# (base="dark" + matching colors) so native BaseWeb components
+# that render outside this DOM tree — dropdown menus, calendar
+# popovers, tooltips — inherit the same palette instead of
+# falling back to Streamlit's stock dark theme.
+#
+# Background   #0B0E1A (page) / #131829 (surface) / #1A2036 (raised)
+# Text         #ECEDF5 (primary) / #8B92AC (muted) / #565D78 (faint)
+# Border       #262C46
+# Accent       #8B7CF6 (violet) — used only for primary actions,
+#              the active nav state, and focus rings
 # Type         Inter for UI text, system fallback stack
-# Radius       6px — small and consistent, not "app-like" bubble corners
-# Shadow       none. Structure comes from a 1px border, not elevation.
+# Radius       8px, shadow none — structure comes from the border
 #
 # Mobile-first: base rules target narrow viewports; the >768px block
 # only adds breathing room, it never changes structure.
@@ -41,25 +45,32 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     :root {
-        --bg: #FAFAFA;
-        --surface: #FFFFFF;
-        --border: #E4E4E4;
-        --text: #111111;
-        --text-muted: #6B6B6B;
-        --text-faint: #A3A3A3;
-        --accent: #111111;
-        --radius: 6px;
+        --bg: #0B0E1A;
+        --surface: #131829;
+        --surface-raised: #1A2036;
+        --border: #262C46;
+        --text: #ECEDF5;
+        --text-muted: #8B92AC;
+        --text-faint: #565D78;
+        --accent: #8B7CF6;
+        --accent-hover: #7A6AE8;
+        --accent-text: #FFFFFF;
+        --radius: 8px;
     }
 
-    * {
+    html, body, * {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont,
             'Segoe UI', Roboto, sans-serif !important;
     }
 
     /* ---------- GLOBAL ---------- */
 
-    .stApp {
-        background: var(--bg);
+    .stApp, [data-testid="stAppViewContainer"], .main {
+        background: var(--bg) !important;
+    }
+
+    header[data-testid="stHeader"] {
+        background: var(--bg) !important;
     }
 
     .block-container {
@@ -73,7 +84,7 @@ st.markdown(
     /* ---------- SIDEBAR ---------- */
 
     section[data-testid="stSidebar"] {
-        background: var(--surface);
+        background: var(--surface) !important;
         border-right: 1px solid var(--border);
     }
 
@@ -87,7 +98,7 @@ st.markdown(
     }
 
     section[data-testid="stSidebar"] hr {
-        border-color: var(--border);
+        border-color: var(--border) !important;
     }
 
     /* Sidebar radio acting as nav */
@@ -98,34 +109,41 @@ st.markdown(
         margin-bottom: 2px;
     }
 
-    /* ---------- HEADINGS ---------- */
+    section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+        background: var(--surface-raised);
+    }
+
+    /* ---------- HEADINGS & TEXT ---------- */
+
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--text) !important;
+    }
 
     h1 {
         font-size: 1.75rem !important;
         font-weight: 600 !important;
         letter-spacing: -0.02em;
-        color: var(--text);
     }
 
     h2 {
         font-size: 1.15rem !important;
         font-weight: 600 !important;
-        color: var(--text);
     }
 
     h3 {
         font-size: 1rem !important;
         font-weight: 600 !important;
+    }
+
+    p, span, label, div, li {
         color: var(--text);
     }
 
-    p, span, label, div {
-        color: var(--text);
-    }
-
-    .stCaption, small {
+    .stCaption, small, [data-testid="stCaptionContainer"] {
         color: var(--text-muted) !important;
     }
+
+    a { color: var(--accent) !important; }
 
     /* ---------- DIVIDERS ---------- */
 
@@ -154,7 +172,7 @@ st.markdown(
     div[data-testid="metric-container"] [data-testid="stMetricValue"] {
         font-weight: 600;
         font-size: 1.35rem;
-        color: var(--text);
+        color: var(--text) !important;
     }
 
     div[data-testid="metric-container"] [data-testid="stMetricDelta"] {
@@ -166,7 +184,7 @@ st.markdown(
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border-color: var(--border) !important;
         border-radius: var(--radius) !important;
-        background: var(--surface);
+        background: var(--surface) !important;
     }
 
     /* ---------- BUTTONS ---------- */
@@ -176,37 +194,94 @@ st.markdown(
         border: 1px solid var(--border);
         font-weight: 500;
         min-height: 40px;
-        background: var(--surface);
-        color: var(--text);
+        background: var(--surface-raised) !important;
+        color: var(--text) !important;
         box-shadow: none;
     }
 
     .stButton > button:hover {
-        border-color: var(--text);
-        color: var(--text);
+        border-color: var(--accent);
+        color: var(--accent) !important;
     }
 
     .stButton > button[kind="primary"] {
-        background: var(--accent);
+        background: var(--accent) !important;
         border-color: var(--accent);
-        color: var(--surface);
+        color: var(--accent-text) !important;
     }
 
     .stButton > button[kind="primary"]:hover {
-        opacity: 0.85;
+        background: var(--accent-hover) !important;
+        border-color: var(--accent-hover);
+        color: var(--accent-text) !important;
     }
 
-    /* ---------- INPUTS ---------- */
+    .stButton > button[kind="primary"] p {
+        color: var(--accent-text) !important;
+    }
 
-    input, textarea, select {
+    /* ---------- TEXT / NUMBER INPUTS ---------- */
+
+    input, textarea {
+        background: var(--surface) !important;
+        border: 1px solid var(--border) !important;
         border-radius: var(--radius) !important;
+        color: var(--text) !important;
+    }
+
+    input:focus, textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 1px var(--accent) !important;
+    }
+
+    input::placeholder, textarea::placeholder {
+        color: var(--text-faint) !important;
+    }
+
+    div[data-baseweb="input"], div[data-baseweb="textarea"],
+    div[data-baseweb="base-input"] {
+        background: var(--surface) !important;
         border-color: var(--border) !important;
     }
 
-    .stTextInput label, .stNumberInput label, .stSelectbox label {
+    button[data-testid="stNumberInputStepDown"],
+    button[data-testid="stNumberInputStepUp"] {
+        background: var(--surface) !important;
+        border-color: var(--border) !important;
+        color: var(--text) !important;
+    }
+
+    .stTextInput label, .stNumberInput label, .stSelectbox label,
+    .stTextArea label {
         font-size: 0.8rem !important;
         font-weight: 500 !important;
         color: var(--text-muted) !important;
+    }
+
+    /* ---------- SELECT / DROPDOWN (incl. portal popover) ---------- */
+
+    div[data-baseweb="select"] > div {
+        background: var(--surface) !important;
+        border-color: var(--border) !important;
+        color: var(--text) !important;
+        border-radius: var(--radius) !important;
+    }
+
+    div[data-baseweb="popover"] ul[role="listbox"],
+    div[data-baseweb="menu"] {
+        background: var(--surface-raised) !important;
+        border: 1px solid var(--border) !important;
+    }
+
+    li[role="option"] {
+        background: var(--surface-raised) !important;
+        color: var(--text) !important;
+    }
+
+    li[role="option"]:hover,
+    li[aria-selected="true"] {
+        background: var(--surface) !important;
+        color: var(--accent) !important;
     }
 
     /* ---------- TABS ---------- */
@@ -214,16 +289,35 @@ st.markdown(
     button[data-baseweb="tab"] {
         font-weight: 500;
         font-size: 0.9rem;
+        color: var(--text-muted) !important;
+    }
+
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: var(--text) !important;
+    }
+
+    div[data-baseweb="tab-highlight"] {
+        background-color: var(--accent) !important;
+    }
+
+    div[data-baseweb="tab-border"] {
+        background-color: var(--border) !important;
     }
 
     /* ---------- PROGRESS ---------- */
 
-    .stProgress > div > div {
+    .stProgress > div > div > div {
         background: var(--accent) !important;
     }
 
-    .stProgress > div {
+    .stProgress > div > div {
         background: var(--border) !important;
+    }
+
+    .progress-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-bottom: 4px;
     }
 
     /* ---------- ALERTS ---------- */
@@ -231,6 +325,11 @@ st.markdown(
     div[data-testid="stAlert"] {
         border-radius: var(--radius);
         border: 1px solid var(--border);
+        background: var(--surface) !important;
+    }
+
+    div[data-testid="stAlert"] p {
+        color: var(--text) !important;
     }
 
     /* ---------- MOBILE ---------- */
