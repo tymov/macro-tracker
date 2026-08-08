@@ -1,18 +1,17 @@
+from datetime import datetime, timedelta
+
+import extra_streamlit_components as stx
 import streamlit as st
 
 from pages import add_food, dashboard, goals
-from services.supabase import get_profile, get_supabase, save_profile
+from services.supabase import get_profile, get_supabase
 
 
 # ============================================================
 # CONFIG
 # ============================================================
 
-st.set_page_config(
-    page_title="Macro",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="Macro", layout="wide")
 
 
 # ============================================================
@@ -26,36 +25,31 @@ st.set_page_config(
 # tooltips — inherit the same palette instead of falling back to
 # Streamlit's stock dark theme.
 #
-# Background   #0B0E1A (page) / #131829 (surface) / #1A2036 (raised)
-# Text         #ECEDF5 (primary) / #8B92AC (muted) / #565D78 (faint)
-# Border       #262C46
-# Accent       #8B7CF6 (violet) — primary actions, active nav/tab
-#              state, focus rings only
-# Type         Inter, system fallback stack
-# Radius       8px, shadow none — structure comes from the border
-#
-# Mobile-first: base rules target narrow viewports; the >768px block
-# only adds breathing room, it never changes structure.
+# Navigation lives in a single st.container(key="main_nav") block —
+# giving it a stable "st-key-main_nav" class is what lets the media
+# query below pin it to the bottom of the screen on mobile instead
+# of the old collapsible sidebar, which was the root of the "tabs
+# show nothing" mobile bug (sidebar collapse/expand is the flakiest
+# part of Streamlit on small screens).
 
 st.markdown(
     """
     <style>
 
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     :root {
-        --bg: #080A12;
-        --surface-glass: rgba(19, 24, 41, 0.55);
-        --surface-raised-glass: rgba(26, 32, 54, 0.7);
-        --glass-border: rgba(255, 255, 255, 0.08);
-        --glass-border-hover: rgba(139, 92, 246, 0.4);
-        --text: #F3F4F6;
-        --text-muted: #9CA3AF;
-        --text-faint: #6B7280;
-        --accent: #8B5CF6;
-        --accent-hover: #7C3AED;
+        --bg: #0B0E1A;
+        --surface: #131829;
+        --surface-raised: #1A2036;
+        --border: #262C46;
+        --text: #ECEDF5;
+        --text-muted: #8B92AC;
+        --text-faint: #565D78;
+        --accent: #8B7CF6;
+        --accent-hover: #7A6AE8;
         --accent-text: #FFFFFF;
-        --radius: 16px;
+        --radius: 8px;
     }
 
     html, body, * {
@@ -63,60 +57,22 @@ st.markdown(
             'Segoe UI', Roboto, sans-serif !important;
     }
 
-    /* ---------- GLOBAL & AMBIENT PURPLE BLOB ---------- */
+    /* ---------- GLOBAL ---------- */
 
     .stApp, [data-testid="stAppViewContainer"], .main {
-        background-color: var(--bg) !important;
-        background-image: 
-            radial-gradient(circle at 50% 35%, rgba(139, 92, 246, 0.22) 0%, rgba(124, 58, 237, 0.08) 35%, transparent 70%),
-            radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.12) 0%, transparent 40%) !important;
-        background-attachment: fixed !important;
+        background: var(--bg) !important;
     }
 
     header[data-testid="stHeader"] {
-        background: transparent !important;
+        background: var(--bg) !important;
     }
 
     .block-container {
         max-width: 720px;
         padding-top: 1.5rem;
-        padding-bottom: 5rem;
+        padding-bottom: 3rem;
         padding-left: 1rem;
         padding-right: 1rem;
-    }
-
-    /* ---------- SIDEBAR (GLASSMORPHIC) ---------- */
-
-    section[data-testid="stSidebar"] {
-        background: var(--surface-glass) !important;
-        backdrop-filter: blur(20px) saturate(180%) !important;
-        -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-        border-right: 1px solid var(--glass-border) !important;
-    }
-
-    section[data-testid="stSidebar"] * {
-        color: var(--text) !important;
-    }
-
-    section[data-testid="stSidebar"] .stCaption,
-    section[data-testid="stSidebar"] small {
-        color: var(--text-muted) !important;
-    }
-
-    section[data-testid="stSidebar"] hr {
-        border-color: var(--glass-border) !important;
-    }
-
-    section[data-testid="stSidebar"] div[role="radiogroup"] label {
-        border-radius: var(--radius);
-        padding: 8px 10px;
-        margin-bottom: 2px;
-        transition: all 0.2s ease;
-    }
-
-    section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
-        background: var(--surface-raised-glass);
-        border: 1px solid var(--glass-border-hover);
     }
 
     /* ---------- HEADINGS & TEXT ---------- */
@@ -127,23 +83,14 @@ st.markdown(
 
     h1 {
         font-size: 1.75rem !important;
-        font-weight: 700 !important;
-        letter-spacing: -0.025em;
-    }
-
-    h2 {
-        font-size: 1.15rem !important;
         font-weight: 600 !important;
+        letter-spacing: -0.02em;
     }
 
-    h3 {
-        font-size: 1rem !important;
-        font-weight: 600 !important;
-    }
+    h2 { font-size: 1.15rem !important; font-weight: 600 !important; }
+    h3 { font-size: 1rem !important; font-weight: 600 !important; }
 
-    p, span, label, div, li {
-        color: var(--text);
-    }
+    p, span, label, div, li { color: var(--text); }
 
     .stCaption, small, [data-testid="stCaptionContainer"] {
         color: var(--text-muted) !important;
@@ -151,127 +98,99 @@ st.markdown(
 
     a { color: var(--accent) !important; }
 
-    /* ---------- DIVIDERS ---------- */
-
     hr {
-        border-color: var(--glass-border) !important;
+        border-color: var(--border) !important;
         margin: 1.25rem 0 !important;
     }
 
-    /* ---------- METRIC CARDS (FROSTED GLASS) ---------- */
+    /* ---------- METRIC CARDS ---------- */
 
     div[data-testid="metric-container"] {
-        background: var(--surface-glass) !important;
-        backdrop-filter: blur(16px) saturate(180%) !important;
-        -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-        border: 1px solid var(--glass-border) !important;
-        border-radius: var(--radius) !important;
-        padding: 16px !important;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    div[data-testid="metric-container"]:hover {
-        border-color: var(--glass-border-hover) !important;
-        box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.15) !important;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
+        box-shadow: none;
     }
 
     div[data-testid="metric-container"] label {
         color: var(--text-muted) !important;
         font-size: 0.75rem !important;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.03em;
     }
 
     div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-        font-weight: 700;
-        font-size: 1.45rem;
+        font-weight: 600;
+        font-size: 1.35rem;
         color: var(--text) !important;
     }
 
-    div[data-testid="metric-container"] [data-testid="stMetricDelta"] {
-        font-size: 0.75rem;
-    }
-
-    /* ---------- CONTAINERS / BORDERED BLOCKS (FROSTED GLASS) ---------- */
+    /* ---------- CONTAINERS / BORDERED BLOCKS ---------- */
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 1px solid var(--glass-border) !important;
+        border-color: var(--border) !important;
         border-radius: var(--radius) !important;
-        background: var(--surface-glass) !important;
-        backdrop-filter: blur(16px) saturate(180%) !important;
-        -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+        background: var(--surface) !important;
     }
 
     /* ---------- BUTTONS ---------- */
 
     .stButton > button {
         border-radius: var(--radius);
-        border: 1px solid var(--glass-border);
+        border: 1px solid var(--border);
         font-weight: 500;
-        min-height: 42px;
-        background: var(--surface-raised-glass) !important;
+        min-height: 40px;
+        background: var(--surface-raised) !important;
         color: var(--text) !important;
-        backdrop-filter: blur(12px) !important;
         box-shadow: none;
-        transition: all 0.25s ease;
     }
 
     .stButton > button:hover {
         border-color: var(--accent);
         color: var(--accent) !important;
-        box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
     }
 
     .stButton > button[kind="primary"] {
         background: var(--accent) !important;
         border-color: var(--accent);
         color: var(--accent-text) !important;
-        box-shadow: 0 4px 20px rgba(139, 92, 246, 0.35);
     }
 
     .stButton > button[kind="primary"]:hover {
         background: var(--accent-hover) !important;
         border-color: var(--accent-hover);
         color: var(--accent-text) !important;
-        box-shadow: 0 6px 24px rgba(139, 92, 246, 0.5);
     }
 
-    .stButton > button[kind="primary"] p {
-        color: var(--accent-text) !important;
-    }
+    .stButton > button[kind="primary"] p { color: var(--accent-text) !important; }
 
     /* ---------- TEXT / NUMBER INPUTS ---------- */
 
     input, textarea {
-        background: var(--surface-glass) !important;
-        backdrop-filter: blur(12px) !important;
-        border: 1px solid var(--glass-border) !important;
+        background: var(--surface) !important;
+        border: 1px solid var(--border) !important;
         border-radius: var(--radius) !important;
         color: var(--text) !important;
     }
 
     input:focus, textarea:focus {
         border-color: var(--accent) !important;
-        box-shadow: 0 0 12px rgba(139, 92, 246, 0.3) !important;
+        box-shadow: 0 0 0 1px var(--accent) !important;
     }
 
-    input::placeholder, textarea::placeholder {
-        color: var(--text-faint) !important;
-    }
+    input::placeholder, textarea::placeholder { color: var(--text-faint) !important; }
 
     div[data-baseweb="input"], div[data-baseweb="textarea"],
     div[data-baseweb="base-input"] {
-        background: var(--surface-glass) !important;
-        border-color: var(--glass-border) !important;
-        border-radius: var(--radius) !important;
+        background: var(--surface) !important;
+        border-color: var(--border) !important;
     }
 
     button[data-testid="stNumberInputStepDown"],
     button[data-testid="stNumberInputStepUp"] {
-        background: var(--surface-glass) !important;
-        border-color: var(--glass-border) !important;
+        background: var(--surface) !important;
+        border-color: var(--border) !important;
         color: var(--text) !important;
     }
 
@@ -282,128 +201,164 @@ st.markdown(
         color: var(--text-muted) !important;
     }
 
-    /* ---------- SELECT / DROPDOWN ---------- */
+    /* ---------- SELECT / DROPDOWN (incl. portal popover) ---------- */
 
     div[data-baseweb="select"] > div {
-        background: var(--surface-glass) !important;
-        backdrop-filter: blur(12px) !important;
-        border-color: var(--glass-border) !important;
+        background: var(--surface) !important;
+        border-color: var(--border) !important;
         color: var(--text) !important;
         border-radius: var(--radius) !important;
     }
 
     div[data-baseweb="popover"] ul[role="listbox"],
     div[data-baseweb="menu"] {
-        background: #111526 !important;
-        backdrop-filter: blur(20px) !important;
-        border: 1px solid var(--glass-border) !important;
-        border-radius: var(--radius) !important;
+        background: var(--surface-raised) !important;
+        border: 1px solid var(--border) !important;
     }
 
-    li[role="option"] {
-        background: transparent !important;
-        color: var(--text) !important;
-    }
+    li[role="option"] { background: var(--surface-raised) !important; color: var(--text) !important; }
 
-    li[role="option"]:hover,
-    li[aria-selected="true"] {
-        background: var(--surface-raised-glass) !important;
+    li[role="option"]:hover, li[aria-selected="true"] {
+        background: var(--surface) !important;
         color: var(--accent) !important;
     }
 
-    /* ---------- SEGMENTED RADIO ---------- */
+    /* ---------- SEGMENTED RADIO (Category / Meal pickers) ---------- */
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] {
         display: flex;
-        gap: 8px;
+        gap: 6px;
         flex-wrap: wrap;
     }
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] label {
-        background: var(--surface-glass);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--glass-border);
+        background: var(--surface);
+        border: 1px solid var(--border);
         border-radius: var(--radius);
-        padding: 8px 16px;
+        padding: 8px 14px;
         margin: 0 !important;
         cursor: pointer;
-        transition: all 0.2s ease;
     }
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
         background: var(--accent);
         border-color: var(--accent);
-        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
     }
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) p {
         color: var(--accent-text) !important;
     }
 
-    .main div[data-testid="stRadio"] input[type="radio"] {
-        display: none;
-    }
+    .main div[data-testid="stRadio"] input[type="radio"] { display: none; }
 
     /* ---------- TABS ---------- */
 
-    button[data-baseweb="tab"] {
-        font-weight: 500;
-        font-size: 0.9rem;
-        color: var(--text-muted) !important;
-    }
-
-    button[data-baseweb="tab"][aria-selected="true"] {
-        color: var(--text) !important;
-    }
-
-    div[data-baseweb="tab-highlight"] {
-        background-color: var(--accent) !important;
-    }
-
-    div[data-baseweb="tab-border"] {
-        background-color: var(--glass-border) !important;
-    }
+    button[data-baseweb="tab"] { font-weight: 500; font-size: 0.9rem; color: var(--text-muted) !important; }
+    button[data-baseweb="tab"][aria-selected="true"] { color: var(--text) !important; }
+    div[data-baseweb="tab-highlight"] { background-color: var(--accent) !important; }
+    div[data-baseweb="tab-border"] { background-color: var(--border) !important; }
 
     /* ---------- PROGRESS ---------- */
 
-    .stProgress > div > div > div {
-        background: linear-gradient(90deg, var(--accent), #A78BFA) !important;
-    }
-
-    .stProgress > div > div {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 999px;
-    }
-
-    .progress-label {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        margin-bottom: 4px;
-    }
+    .stProgress > div > div > div { background: var(--accent) !important; }
+    .stProgress > div > div { background: var(--border) !important; }
+    .progress-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
 
     /* ---------- ALERTS ---------- */
 
     div[data-testid="stAlert"] {
         border-radius: var(--radius);
-        border: 1px solid var(--glass-border);
-        background: var(--surface-glass) !important;
-        backdrop-filter: blur(16px) !important;
+        border: 1px solid var(--border);
+        background: var(--surface) !important;
     }
 
-    div[data-testid="stAlert"] p {
-        color: var(--text) !important;
+    div[data-testid="stAlert"] p { color: var(--text) !important; }
+
+    /* ---------- MACRO RINGS ---------- */
+
+    .ring-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 4px 0 8px 0;
     }
 
-    /* ---------- RESPONSIVE ---------- */
+    .ring-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+    }
 
-    @media (min-width: 768px) {
+    .ring {
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        background: conic-gradient(var(--accent) calc(var(--pct) * 360deg), var(--border) 0deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+    }
+
+    .ring-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ring-value { font-weight: 600; font-size: 0.8rem; color: var(--text); }
+    .ring-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; font-weight: 500; }
+    .ring-target { font-size: 0.65rem; color: var(--text-faint); }
+
+    /* ---------- HISTORY STRIP ---------- */
+
+    .st-key-history_strip [data-testid="column"] { padding: 0 3px; }
+
+    .st-key-history_strip .stButton > button {
+        min-height: 56px;
+        white-space: pre-line;
+        font-size: 0.75rem;
+        line-height: 1.3;
+    }
+
+    /* ---------- MAIN NAV — top on desktop, fixed bottom on mobile ---------- */
+
+    .st-key-main_nav div[role="radiogroup"] {
+        justify-content: center;
+    }
+
+    .st-key-main_nav div[role="radiogroup"] label {
+        flex: 1;
+        text-align: center;
+        justify-content: center;
+        display: flex;
+    }
+
+    @media (max-width: 768px) {
+
+        .st-key-main_nav {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 999;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+            margin: 0 !important;
+        }
+
         .block-container {
             padding-top: 2.5rem;
+            padding-bottom: 5.5rem;
         }
 
-        h1 {
-            font-size: 2rem !important;
-        }
+        h1 { font-size: 2rem !important; }
     }
 
     </style>
@@ -413,6 +368,9 @@ st.markdown(
 
 
 supabase = get_supabase()
+cookie_manager = stx.CookieManager(key="cookie_manager")
+
+COOKIE_NAME = "mt_refresh_token"
 
 
 # ============================================================
@@ -426,18 +384,49 @@ if "user" not in st.session_state:
     st.session_state.user = None
 
 
-# Restore the Supabase session if Streamlit state was lost
-if st.session_state.user is None:
+def _persist_session(session):
+    """Stores the refresh token in a long-lived cookie so a dropped
+    connection or full page reload (common on mobile — backgrounding
+    the browser, locking the phone) can silently restore the login
+    instead of bouncing back to the login screen."""
+
+    cookie_manager.set(
+        COOKIE_NAME,
+        session.refresh_token,
+        expires_at=datetime.now() + timedelta(days=30),
+        key="set_refresh_token",
+    )
+
+
+def _clear_session_cookie():
     try:
-        current_session = supabase.auth.get_session()
-
-        if current_session and current_session.user:
-            st.session_state.session = current_session
-            st.session_state.user = current_session.user
-
+        cookie_manager.delete(COOKIE_NAME, key="delete_refresh_token")
     except Exception:
-        st.session_state.session = None
-        st.session_state.user = None
+        pass
+
+
+# ============================================================
+# RESTORE SESSION FROM COOKIE (if we don't already have one)
+# ============================================================
+
+if st.session_state.user is None:
+
+    cookies = cookie_manager.get_all()
+
+    if cookies is not None:
+
+        refresh_token = cookies.get(COOKIE_NAME)
+
+        if refresh_token:
+            try:
+                auth_response = supabase.auth.refresh_session(refresh_token)
+                st.session_state.session = auth_response.session
+                st.session_state.user = auth_response.user
+                _persist_session(auth_response.session)
+
+            except Exception:
+                _clear_session_cookie()
+
 
 # ============================================================
 # AUTHENTICATION
@@ -470,6 +459,7 @@ def login_screen():
                 )
                 st.session_state.session = response.session
                 st.session_state.user = response.user
+                _persist_session(response.session)
                 st.rerun()
 
             except Exception:
@@ -488,6 +478,7 @@ def login_screen():
                 if response.session:
                     st.session_state.session = response.session
                     st.session_state.user = response.user
+                    _persist_session(response.session)
                     st.success("Account created.")
                     st.rerun()
                 else:
@@ -508,33 +499,67 @@ if st.session_state.user is None:
 
 user_id = st.session_state.user.id
 
-profile = get_profile(user_id)
+# Profiles table isn't pre-populated with an empty row anymore — an
+# insert with only `id` set fails immediately if any other column in
+# `profiles` is NOT NULL without a default, which was likely the
+# actual cause of goals silently failing to save. A row now only gets
+# written the first time the person actually saves their goals.
+profile = get_profile(user_id) or {}
 
-if profile is None:
-    save_profile(user_id, {})
-    profile = get_profile(user_id)
 
+# ============================================================
+# HEADER
+# ============================================================
 
-with st.sidebar:
+h1, h2, h3 = st.columns([3, 1.3, 1.1])
 
+with h1:
     st.markdown("### Macro")
     st.caption(st.session_state.user.email)
 
-    st.divider()
+with h2:
+    if st.button("Add / Scan", use_container_width=True):
+        st.session_state.pop("selected_product", None)
+        st.query_params["page"] = "Add food"
+        st.rerun()
 
-    page = st.radio(
-        "Navigation",
-        ["Dashboard", "Add food", "Goals"],
-        label_visibility="collapsed",
-    )
-
-    st.divider()
-
+with h3:
     if st.button("Log out", use_container_width=True):
-        supabase.auth.sign_out()
+        try:
+            supabase.auth.sign_out()
+        except Exception:
+            pass
+        _clear_session_cookie()
         st.session_state.session = None
         st.session_state.user = None
         st.rerun()
+
+st.divider()
+
+
+# ============================================================
+# NAVIGATION
+# ============================================================
+
+PAGE_NAMES = ["Dashboard", "Add food", "Goals"]
+
+query_page = st.query_params.get("page", "Dashboard")
+default_index = PAGE_NAMES.index(query_page) if query_page in PAGE_NAMES else 0
+
+with st.container(key="main_nav"):
+    page = st.radio(
+        "Navigation",
+        PAGE_NAMES,
+        index=default_index,
+        horizontal=True,
+        label_visibility="collapsed",
+        key="nav_radio",
+    )
+
+if page != query_page:
+    st.query_params["page"] = page
+
+st.write("")
 
 
 # ============================================================
