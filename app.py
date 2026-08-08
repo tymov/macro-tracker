@@ -395,6 +395,19 @@ if "user" not in st.session_state:
     st.session_state.user = None
 
 
+# Restore the Supabase session if Streamlit state was lost
+if st.session_state.user is None:
+    try:
+        current_session = supabase.auth.get_session()
+
+        if current_session and current_session.user:
+            st.session_state.session = current_session
+            st.session_state.user = current_session.user
+
+    except Exception:
+        st.session_state.session = None
+        st.session_state.user = None
+
 # ============================================================
 # AUTHENTICATION
 # ============================================================
