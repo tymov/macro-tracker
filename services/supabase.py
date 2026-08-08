@@ -4,17 +4,30 @@ user_id explicitly rather than reaching into st.session_state, so
 this module has no dependency on Streamlit's session state.
 """
 
+from datetime import datetime, timezone
+
 import streamlit as st
 from supabase import create_client, Client
 
 
-@st.cache_resource
 def get_supabase() -> Client:
+    """One client per browser session, not per server process.
 
-    return create_client(
-        st.secrets["SUPABASE_URL"],
-        st.secrets["SUPABASE_KEY"],
-    )
+    @st.cache_resource would share a single client (and its logged-in
+    auth session) across every visitor hitting the same server
+    process — fine for a single-user demo, not fine once more than
+    one person uses the app at once. Storing it in st.session_state
+    keeps each visitor's client, and therefore their auth session,
+    isolated to them.
+    """
+
+    if "_supabase_client" not in st.session_state:
+        st.session_state["_supabase_client"] = create_client(
+            st.secrets["SUPABASE_URL"],
+            st.secrets["SUPABASE_KEY"],
+        )
+
+    return st.session_state["_supabase_client"]
 
 
 # ============================================================
@@ -37,33 +50,36 @@ def get_profile(user_id):
 
 def save_profile(user_id, data):
 
-    data = {
-        **data,
-        "id": user_id,
-    }
+    data = {**data, "id": user_id}
 
-    try:
-        response = (
-            get_supabase()
-            .table("profiles")
-            .upsert(
-                data,
-                on_conflict="id",
-            )
-            .execute()
-        )
-
-        return response.data
-
-    except Exception as e:
-        st.error("Failed to save your goals.")
-        st.exception(e)
-        return None
+    get_supabase().table("profiles").upsert(data).execute()
 
 
 # ============================================================
 # FOOD CACHE (per-100g nutrient data, deduped by source+external_id)
 # ============================================================
+
+def update_food_cache(food_id, nutrients):
+    """Overwrites a cached food's per-100g nutrients with a
+    user-corrected value. Best-effort — failures here shouldn't
+    block the food log insert that triggered them."""
+
+    try:
+        get_supabase().table("foods").update(
+            {
+                "calories": nutrients["calories"],
+                "protein": nutrients["protein"],
+                "carbs": nutrients["carbs"],
+                "fat": nutrients["fat"],
+                "fiber": nutrients.get("fiber", 0),
+                "sugar": nutrients.get("sugar", 0),
+                "sodium": nutrients.get("sodium", 0),
+            }
+        ).eq("id", food_id).execute()
+
+    except Exception:
+        pass
+
 
 def cache_food(product, nutrients):
 
@@ -105,6 +121,7 @@ def cache_food(product, nutrients):
 def get_logs_for_day(user_id, day):
 
     day_start = f"{day}T00:00:00"
+    day_end = f"{day}T23:59:59.999999"
 
     response = (
         get_supabase()
@@ -112,6 +129,7 @@ def get_logs_for_day(user_id, day):
         .select("*")
         .eq("user_id", user_id)
         .gte("eaten_at", day_start)
+        .lte("eaten_at", day_end)
         .order("eaten_at", desc=True)
         .execute()
     )
@@ -119,9 +137,49 @@ def get_logs_for_day(user_id, day):
     return response.data or []
 
 
-def insert_food_log(user_id, entry):
+def get_logs_for_range(user_id, start_day, end_day):
+    """All logs between two dates (inclusive), for the history strip.
+    One query instead of one-per-day."""
 
-    row = {"user_id": user_id, **entry}
+    range_start = f"{start_day}T00:00:00"
+    range_end = f"{end_day}T23:59:59.999999"
+
+    response = (
+        get_supabase()
+        .table("food_logs")
+        .select("*")
+        .eq("user_id", user_id)
+        .gte("eaten_at", range_start)
+        .lte("eaten_at", range_end)
+        .execute()
+    )
+
+    return response.data or []
+
+
+def insert_food_log(user_id, entry):
+    """Inserts one food_logs row.
+
+    Two defensive additions vs. a naive insert:
+    - eaten_at is set explicitly (UTC now) rather than relying on a
+      database default. If that default doesn't exist, the row's
+      eaten_at ends up NULL, and `.gte("eaten_at", ...)` in
+      get_logs_for_day silently matches nothing — the exact "food
+      saves fine but dashboard stays empty" symptom.
+    - legacy `quantity` / `unit` columns are populated alongside the
+      new `quantity_value` / `quantity_unit`, so this works whether
+      or not schema.sql has been run yet (older schemas have a
+      NOT NULL constraint on `quantity` that a quantity_value-only
+      insert violates).
+    """
+
+    row = {
+        "user_id": user_id,
+        "eaten_at": datetime.now(timezone.utc).isoformat(),
+        "quantity": entry.get("quantity_value"),
+        "unit": entry.get("quantity_unit"),
+        **entry,
+    }
 
     get_supabase().table("food_logs").insert(row).execute()
 
@@ -202,6 +260,10 @@ def get_recent_foods(user_id, limit=8):
 
 def insert_quick_entry(user_id, entry):
 
-    row = {"user_id": user_id, **entry}
+    row = {
+        "user_id": user_id,
+        "eaten_at": datetime.now(timezone.utc).isoformat(),
+        **entry,
+    }
 
     get_supabase().table("quick_entries").insert(row).execute()
