@@ -1,22 +1,49 @@
-from datetime import date
+from datetime import date, timedelta
 
 import streamlit as st
 
 from components.food_card import render_log_row
-from components.macro_progress import render_daily_summary
-from services.supabase import delete_food_log, get_logs_for_day
+from services.supabase import delete_food_log, get_logs_for_range
 
 
 def render(user_id, profile):
 
     st.title("Overview")
-    st.caption(date.today().strftime("%A, %d %B %Y"))
 
-    logs = get_logs_for_day(user_id, date.today())
+    if "selected_day" not in st.session_state:
+        st.session_state.selected_day = date.today()
 
-    st.subheader("Today")
+    selected_day = st.session_state.selected_day
+    range_start = date.today() - timedelta(days=4)
 
-    render_daily_summary(profile, logs)
+    all_logs = get_logs_for_range(user_id, range_start, date.today())
+
+    logs_by_day = {}
+    for row in all_logs:
+        eaten_at = row.get("eaten_at") or ""
+        day_key = eaten_at[:10]
+        logs_by_day.setdefault(day_key, []).append(row)
+
+    target_calories = profile.get("calorie_target") or 0
+
+    _render_history_strip(logs_by_day, target_calories, range_start)
+
+    st.divider()
+
+    logs = logs_by_day.get(str(selected_day), [])
+
+    label = "Today" if selected_day == date.today() else selected_day.strftime("%A, %d %B")
+    st.subheader(label)
+
+    _render_rings(profile, logs)
+
+    total_calories = sum(float(x["calories"] or 0) for x in logs)
+
+    if target_calories and total_calories >= target_calories:
+        toast_key = f"toast_goal_hit_{selected_day}"
+        if not st.session_state.get(toast_key):
+            st.session_state[toast_key] = True
+            st.toast("Daily goal reached.", icon=None)
 
     st.divider()
 
@@ -72,3 +99,90 @@ def render(user_id, profile):
                 render_log_row(item, handle_remove)
         else:
             st.caption("Nothing logged.")
+
+
+def _render_history_strip(logs_by_day, target_calories, range_start):
+    """Last 5 days as tappable tiles, each flagging whether that
+    day's calorie total was within the target."""
+
+    with st.container(key="history_strip"):
+
+        cols = st.columns(5)
+
+        for i in range(5):
+
+            day = range_start + timedelta(days=i)
+            day_logs = logs_by_day.get(str(day), [])
+            day_total = sum(float(x["calories"] or 0) for x in day_logs)
+
+            has_data = len(day_logs) > 0
+            hit_goal = (
+                has_data and target_calories
+                and target_calories * 0.9 <= day_total <= target_calories * 1.1
+            )
+
+            is_selected = day == st.session_state.selected_day
+            is_future = day > date.today()
+
+            marker = "\u2713" if hit_goal else ("\u2013" if has_data else "")
+            label = f"{day.strftime('%a')} {day.day}" + (f"  {marker}" if marker else "")
+
+            with cols[i]:
+                st.button(
+                    label,
+                    key=f"day_{day}",
+                    use_container_width=True,
+                    disabled=is_future,
+                    type="primary" if is_selected else "secondary",
+                    on_click=_select_day,
+                    args=(day,),
+                )
+
+
+def _select_day(day):
+    st.session_state.selected_day = day
+
+
+def _render_rings(profile, logs):
+
+    totals = {
+        "Calories": (
+            sum(float(x["calories"] or 0) for x in logs),
+            profile.get("calorie_target") or 0,
+        ),
+        "Protein": (
+            sum(float(x["protein"] or 0) for x in logs),
+            profile.get("protein_target") or 0,
+        ),
+        "Carbs": (
+            sum(float(x["carbs"] or 0) for x in logs),
+            profile.get("carb_target") or 0,
+        ),
+        "Fat": (
+            sum(float(x["fat"] or 0) for x in logs),
+            profile.get("fat_target") or 0,
+        ),
+    }
+
+    rings_html = '<div class="ring-row">'
+
+    for label, (value, target) in totals.items():
+
+        pct = min(value / target, 1.0) if target else 0
+        unit = "" if label == "Calories" else "g"
+
+        rings_html += f"""
+        <div class="ring-item">
+            <div class="ring" style="--pct:{pct};">
+                <div class="ring-inner">
+                    <div class="ring-value">{value:.0f}</div>
+                </div>
+            </div>
+            <div class="ring-label">{label}</div>
+            <div class="ring-target">of {target:.0f}{unit}</div>
+        </div>
+        """
+
+    rings_html += "</div>"
+
+    st.markdown(rings_html, unsafe_allow_html=True)
