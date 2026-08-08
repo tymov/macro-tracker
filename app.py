@@ -12,132 +12,530 @@ from supabase import create_client, Client
 st.set_page_config(
     page_title="Macro",
     page_icon="🥗",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    layout="centered",
+    initial_sidebar_state="collapsed",
 )
 
 
 # ============================================================
-# CUSTOM CSS
+# CUSTOM CSS — MOBILE-FIRST DESIGN SYSTEM
 # ============================================================
 
 st.markdown(
     """
     <style>
 
-    /* ---------- GLOBAL ---------- */
+    /* =========================================================
+       DESIGN TOKENS
+       ========================================================= */
+
+    :root {
+        --bg: #f5f6f2;
+        --surface: #ffffff;
+        --surface-soft: #eef1eb;
+        --surface-muted: #f8f9f7;
+        --ink: #182019;
+        --ink-soft: #566057;
+        --muted: #7a837c;
+        --line: #e1e5df;
+        --line-strong: #d2d8d0;
+        --primary: #5d7f61;
+        --primary-dark: #45664b;
+        --primary-soft: #e3ece2;
+        --accent: #e89b57;
+        --danger: #c95d57;
+        --radius-sm: 10px;
+        --radius-md: 16px;
+        --radius-lg: 22px;
+        --shadow-sm: 0 1px 2px rgba(24, 32, 25, 0.04);
+        --shadow-md: 0 8px 28px rgba(24, 32, 25, 0.07);
+    }
+
+    /* =========================================================
+       GLOBAL APP
+       ========================================================= */
+
+    html, body, [class*="css"] {
+        font-family:
+            Inter,
+            ui-sans-serif,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
+        color: var(--ink);
+    }
 
     .stApp {
-        background: #f7f8fa;
+        background: var(--bg);
     }
 
-    .block-container {
-        max-width: 1200px;
-        padding-top: 2rem;
-        padding-bottom: 4rem;
+    [data-testid="stAppViewContainer"] {
+        background:
+            radial-gradient(
+                circle at 100% 0%,
+                rgba(93, 127, 97, 0.08),
+                transparent 28rem
+            ),
+            var(--bg);
     }
 
-    /* ---------- SIDEBAR ---------- */
-
-    section[data-testid="stSidebar"] {
-        background: #111318;
+    .main .block-container {
+        max-width: 1080px;
+        padding: 1.25rem 1rem 6rem;
     }
 
-    section[data-testid="stSidebar"] * {
-        color: #ffffff;
+    /* Remove Streamlit's excess top whitespace */
+    [data-testid="stAppViewBlockContainer"] {
+        padding-top: 0.75rem;
     }
 
-    /* ---------- HEADINGS ---------- */
+    /* Hide the default decoration/header chrome where possible */
+    [data-testid="stHeader"] {
+        background: transparent;
+    }
+
+    /* =========================================================
+       TYPOGRAPHY
+       ========================================================= */
+
+    h1, h2, h3 {
+        color: var(--ink) !important;
+        letter-spacing: -0.035em !important;
+    }
 
     h1 {
-        font-size: 2.4rem !important;
-        font-weight: 700 !important;
-        letter-spacing: -0.04em;
+        font-size: clamp(1.9rem, 7vw, 2.75rem) !important;
+        line-height: 1.05 !important;
+        font-weight: 780 !important;
+        margin: 0 0 0.35rem !important;
     }
 
     h2 {
-        font-size: 1.5rem !important;
-        font-weight: 650 !important;
+        font-size: clamp(1.35rem, 5vw, 1.8rem) !important;
+        line-height: 1.15 !important;
+        font-weight: 720 !important;
     }
 
     h3 {
-        font-weight: 600 !important;
+        font-size: 1.05rem !important;
+        line-height: 1.25 !important;
+        font-weight: 700 !important;
     }
 
-    /* ---------- METRIC CARDS ---------- */
+    p, label, .stCaption {
+        color: var(--ink-soft);
+    }
+
+    [data-testid="stCaptionContainer"] {
+        color: var(--muted);
+    }
+
+    hr {
+        border: 0 !important;
+        border-top: 1px solid var(--line) !important;
+        margin: 1.5rem 0 !important;
+    }
+
+    /* =========================================================
+       SIDEBAR — DESKTOP DRAWER / MOBILE MENU
+       ========================================================= */
+
+    section[data-testid="stSidebar"] {
+        background: #182019;
+        border-right: 0;
+    }
+
+    section[data-testid="stSidebar"] > div {
+        background: #182019;
+        padding: 1.1rem 0.85rem;
+    }
+
+    section[data-testid="stSidebar"] * {
+        color: #f7faf5 !important;
+    }
+
+    section[data-testid="stSidebar"] hr {
+        border-top-color: rgba(255,255,255,0.10) !important;
+    }
+
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1 {
+        color: #ffffff !important;
+        font-size: 1.65rem !important;
+        margin-bottom: 0.1rem !important;
+    }
+
+    /* Navigation radio */
+    section[data-testid="stSidebar"] [role="radiogroup"] {
+        gap: 0.35rem;
+    }
+
+    section[data-testid="stSidebar"] [role="radiogroup"] > label {
+        border-radius: 13px;
+        padding: 0.75rem 0.85rem;
+        transition: background 0.15s ease;
+    }
+
+    section[data-testid="stSidebar"] [role="radiogroup"] > label:hover {
+        background: rgba(255,255,255,0.08);
+    }
+
+    section[data-testid="stSidebar"] [role="radiogroup"] > label[data-checked="true"] {
+        background: rgba(255,255,255,0.13);
+    }
+
+    /* =========================================================
+       BUTTONS
+       ========================================================= */
+
+    .stButton > button {
+        width: 100%;
+        min-height: 46px;
+        border-radius: 13px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 0.93rem;
+        font-weight: 680;
+        box-shadow: var(--shadow-sm);
+        transition:
+            transform 0.12s ease,
+            box-shadow 0.12s ease,
+            background 0.12s ease;
+    }
+
+    .stButton > button:hover {
+        border-color: var(--line-strong);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+
+    .stButton > button:active {
+        transform: translateY(0);
+    }
+
+    .stButton > button[kind="primary"] {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #ffffff;
+        box-shadow: 0 7px 18px rgba(93, 127, 97, 0.22);
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        background: var(--primary-dark);
+        border-color: var(--primary-dark);
+    }
+
+    /* Sidebar buttons */
+    section[data-testid="stSidebar"] .stButton > button {
+        background: rgba(255,255,255,0.07);
+        border-color: rgba(255,255,255,0.10);
+        color: #fff;
+        box-shadow: none;
+    }
+
+    /* =========================================================
+       INPUTS
+       ========================================================= */
+
+    input,
+    textarea,
+    [data-baseweb="select"] > div,
+    [data-testid="stNumberInput"] > div {
+        border-radius: 13px !important;
+    }
+
+    input,
+    textarea {
+        background: var(--surface) !important;
+    }
+
+    [data-baseweb="select"] > div {
+        background: var(--surface) !important;
+        border-color: var(--line) !important;
+    }
+
+    input:focus,
+    textarea:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(93, 127, 97, 0.12) !important;
+    }
+
+    [data-testid="stTextInput"] label,
+    [data-testid="stNumberInput"] label,
+    [data-testid="stSelectbox"] label {
+        font-size: 0.82rem;
+        font-weight: 650;
+        color: var(--ink-soft) !important;
+        margin-bottom: 0.25rem;
+    }
+
+    /* =========================================================
+       TABS
+       ========================================================= */
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.25rem;
+        background: var(--surface-soft);
+        padding: 0.3rem;
+        border-radius: 14px;
+        overflow-x: auto;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        min-height: 42px;
+        border-radius: 10px;
+        padding: 0.45rem 0.8rem;
+        color: var(--ink-soft);
+        font-weight: 650;
+        white-space: nowrap;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: var(--surface);
+        color: var(--ink) !important;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .stTabs [data-baseweb="tab-highlight"] {
+        display: none;
+    }
+
+    /* =========================================================
+       METRIC CARDS
+       ========================================================= */
 
     div[data-testid="metric-container"] {
-        background: white;
-        border: 1px solid #e8e9ed;
-        border-radius: 16px;
-        padding: 18px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        box-shadow: var(--shadow-sm);
+        min-height: 108px;
     }
 
     div[data-testid="metric-container"] label {
-        color: #737780 !important;
+        color: var(--muted) !important;
+        font-size: 0.78rem;
+        font-weight: 650;
     }
 
     div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-        font-weight: 700;
+        color: var(--ink) !important;
+        font-size: clamp(1.35rem, 6vw, 1.9rem);
+        font-weight: 780;
+        letter-spacing: -0.035em;
     }
 
-    /* ---------- BUTTONS ---------- */
-
-    .stButton > button {
-        border-radius: 10px;
-        border: 1px solid #e2e4e8;
+    div[data-testid="metric-container"] [data-testid="stMetricDelta"] {
+        font-size: 0.78rem;
         font-weight: 600;
-        min-height: 42px;
     }
 
-    /* ---------- INPUTS ---------- */
+    /* =========================================================
+       PROGRESS
+       ========================================================= */
 
-    input, textarea, select {
-        border-radius: 10px !important;
+    [data-testid="stProgress"] > div > div {
+        height: 9px;
+        border-radius: 999px;
+        background: #dfe5dc;
     }
 
-    /* ---------- FOOD CARDS ---------- */
+    [data-testid="stProgress"] > div > div > div {
+        border-radius: 999px;
+        background: var(--primary);
+    }
+
+    /* =========================================================
+       CONTAINERS / CARDS
+       ========================================================= */
+
+    [data-testid="stVerticalBlockBorderWrapper"] {
+        background: var(--surface);
+        border: 1px solid var(--line) !important;
+        border-radius: var(--radius-md) !important;
+        box-shadow: var(--shadow-sm);
+        padding: 0.2rem;
+    }
 
     .food-card {
-        background: white;
-        border: 1px solid #e8e9ed;
-        border-radius: 14px;
-        padding: 16px;
-        margin-bottom: 10px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 0.7rem;
+        box-shadow: var(--shadow-sm);
     }
 
     .food-name {
-        font-weight: 650;
-        font-size: 1rem;
+        color: var(--ink);
+        font-weight: 720;
+        font-size: 0.98rem;
+        line-height: 1.25;
     }
 
     .food-meta {
-        color: #737780;
-        font-size: 0.85rem;
-        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-top: 0.25rem;
     }
 
-    /* ---------- PROGRESS ---------- */
+    /* =========================================================
+       ALERTS / STATUS
+       ========================================================= */
 
-    .progress-label {
-        font-size: 0.85rem;
-        color: #737780;
-        margin-bottom: 4px;
+    [data-testid="stAlert"] {
+        border-radius: 13px;
+        border: 1px solid var(--line);
+        box-shadow: none;
     }
 
-    /* ---------- MOBILE ---------- */
+    /* =========================================================
+       LOGIN SCREEN
+       ========================================================= */
+
+    .login-shell {
+        max-width: 430px;
+        margin: 7vh auto 0;
+    }
+
+    .login-brand {
+        text-align: center;
+        margin-bottom: 1.75rem;
+    }
+
+    .login-icon {
+        width: 62px;
+        height: 62px;
+        margin: 0 auto 1rem;
+        display: grid;
+        place-items: center;
+        border-radius: 18px;
+        background: var(--primary-soft);
+        font-size: 1.8rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .login-brand h1 {
+        margin-bottom: 0.25rem !important;
+    }
+
+    .login-brand p {
+        margin: 0;
+        color: var(--muted);
+    }
+
+    /* =========================================================
+       MOBILE-FIRST LAYOUT
+       ========================================================= */
 
     @media (max-width: 768px) {
 
-        .block-container {
-            padding: 1rem;
+        .main .block-container {
+            max-width: 100%;
+            padding: 0.8rem 0.8rem 5rem;
+        }
+
+        [data-testid="stAppViewBlockContainer"] {
+            padding-top: 0.45rem;
         }
 
         h1 {
-            font-size: 1.9rem !important;
+            font-size: 1.85rem !important;
         }
 
+        h2 {
+            font-size: 1.35rem !important;
+        }
+
+        h3 {
+            font-size: 1rem !important;
+        }
+
+        /* Stack Streamlit columns by making their contents comfortable */
+        [data-testid="column"] {
+            min-width: 0 !important;
+        }
+
+        /* Metrics become a compact 2x2 grid */
+        div[data-testid="metric-container"] {
+            min-height: 94px;
+            padding: 0.8rem;
+            border-radius: 15px;
+        }
+
+        div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+            font-size: 1.35rem;
+        }
+
+        /* Make every important action thumb-friendly */
+        .stButton > button {
+            min-height: 48px;
+        }
+
+        input,
+        [data-baseweb="select"] > div {
+            min-height: 46px;
+        }
+
+        /* Keep tabs usable with a thumb */
+        .stTabs [data-baseweb="tab-list"] {
+            scrollbar-width: none;
+        }
+
+        .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Tighter cards */
+        [data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 15px !important;
+        }
+
+        /* Login */
+        .login-shell {
+            margin: 5vh auto 0;
+        }
+    }
+
+    /* =========================================================
+       SMALL PHONES
+       ========================================================= */
+
+    @media (max-width: 430px) {
+
+        .main .block-container {
+            padding-left: 0.7rem;
+            padding-right: 0.7rem;
+        }
+
+        div[data-testid="metric-container"] {
+            padding: 0.7rem;
+        }
+
+        div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+            font-size: 1.2rem;
+        }
+
+        .stTabs [data-baseweb="tab"] {
+            padding-left: 0.65rem;
+            padding-right: 0.65rem;
+            font-size: 0.82rem;
+        }
+    }
+
+    /* =========================================================
+       REDUCE MOTION FOR ACCESSIBILITY
+       ========================================================= */
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            scroll-behavior: auto !important;
+            transition: none !important;
+        }
     }
 
     </style>
