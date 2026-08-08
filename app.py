@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 from datetime import date
 
@@ -283,4 +282,3 @@ st.divider()
 st.caption(
     "Personal macro tracker • Version 1"
 )
-```
