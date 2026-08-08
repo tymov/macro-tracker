@@ -37,9 +37,28 @@ def get_profile(user_id):
 
 def save_profile(user_id, data):
 
-    data = {**data, "id": user_id}
+    data = {
+        **data,
+        "id": user_id,
+    }
 
-    get_supabase().table("profiles").upsert(data).execute()
+    try:
+        response = (
+            get_supabase()
+            .table("profiles")
+            .upsert(
+                data,
+                on_conflict="id",
+            )
+            .execute()
+        )
+
+        return response.data
+
+    except Exception as e:
+        st.error("Failed to save your goals.")
+        st.exception(e)
+        return None
 
 
 # ============================================================
