@@ -1,284 +1,1614 @@
 import streamlit as st
-from datetime import date
+import requests
+from datetime import date, datetime
 
-# ---------------------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------------------
+from supabase import create_client, Client
+
+
+# ============================================================
+# CONFIG
+# ============================================================
 
 st.set_page_config(
-    page_title="My Macro Tracker",
+    page_title="Macro",
     page_icon="🥗",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------
-# SESSION STATE
-# ---------------------------------------------------------
 
-if "food_log" not in st.session_state:
-    st.session_state.food_log = []
+# ============================================================
+# CUSTOM CSS
+# ============================================================
 
-if "foods" not in st.session_state:
-    st.session_state.foods = {
-        "Chicken breast": {
-            "calories": 165,
-            "protein": 31,
-            "carbs": 0,
-            "fat": 3.6
-        },
-        "White rice": {
-            "calories": 130,
-            "protein": 2.7,
-            "carbs": 28,
-            "fat": 0.3
-        },
-        "Egg": {
-            "calories": 143,
-            "protein": 12.6,
-            "carbs": 0.7,
-            "fat": 9.5
-        },
-        "Greek yogurt": {
-            "calories": 59,
-            "protein": 10.3,
-            "carbs": 3.6,
-            "fat": 0.4
-        },
-        "Banana": {
-            "calories": 89,
-            "protein": 1.1,
-            "carbs": 22.8,
-            "fat": 0.3
-        },
-        "Oats": {
-            "calories": 389,
-            "protein": 16.9,
-            "carbs": 66.3,
-            "fat": 6.9
-        }
+st.markdown(
+    """
+    <style>
+
+    /* ---------- GLOBAL ---------- */
+
+    .stApp {
+        background: #f7f8fa;
     }
 
-# ---------------------------------------------------------
-# TARGETS
-# ---------------------------------------------------------
+    .block-container {
+        max-width: 1200px;
+        padding-top: 2rem;
+        padding-bottom: 4rem;
+    }
 
-CALORIE_TARGET = 2400
-PROTEIN_TARGET = 180
-CARB_TARGET = 250
-FAT_TARGET = 80
+    /* ---------- SIDEBAR ---------- */
 
-# ---------------------------------------------------------
-# CALCULATE TOTALS
-# ---------------------------------------------------------
+    section[data-testid="stSidebar"] {
+        background: #111318;
+    }
 
-total_calories = sum(item["calories"] for item in st.session_state.food_log)
-total_protein = sum(item["protein"] for item in st.session_state.food_log)
-total_carbs = sum(item["carbs"] for item in st.session_state.food_log)
-total_fat = sum(item["fat"] for item in st.session_state.food_log)
+    section[data-testid="stSidebar"] * {
+        color: #ffffff;
+    }
 
-# ---------------------------------------------------------
-# HEADER
-# ---------------------------------------------------------
+    /* ---------- HEADINGS ---------- */
 
-st.title("🥗 My Macro Tracker")
+    h1 {
+        font-size: 2.4rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.04em;
+    }
 
-st.caption(date.today().strftime("%A, %d %B %Y"))
+    h2 {
+        font-size: 1.5rem !important;
+        font-weight: 650 !important;
+    }
 
-st.divider()
+    h3 {
+        font-weight: 600 !important;
+    }
 
-# ---------------------------------------------------------
-# MACRO SUMMARY
-# ---------------------------------------------------------
+    /* ---------- METRIC CARDS ---------- */
 
-st.subheader("Today's Macros")
+    div[data-testid="metric-container"] {
+        background: white;
+        border: 1px solid #e8e9ed;
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
 
-col1, col2, col3, col4 = st.columns(4)
+    div[data-testid="metric-container"] label {
+        color: #737780 !important;
+    }
 
-with col1:
-    st.metric(
-        "Calories",
-        f"{total_calories:.0f} kcal",
-        f"{CALORIE_TARGET - total_calories:.0f} remaining"
+    div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+        font-weight: 700;
+    }
+
+    /* ---------- BUTTONS ---------- */
+
+    .stButton > button {
+        border-radius: 10px;
+        border: 1px solid #e2e4e8;
+        font-weight: 600;
+        min-height: 42px;
+    }
+
+    /* ---------- INPUTS ---------- */
+
+    input, textarea, select {
+        border-radius: 10px !important;
+    }
+
+    /* ---------- FOOD CARDS ---------- */
+
+    .food-card {
+        background: white;
+        border: 1px solid #e8e9ed;
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 10px;
+    }
+
+    .food-name {
+        font-weight: 650;
+        font-size: 1rem;
+    }
+
+    .food-meta {
+        color: #737780;
+        font-size: 0.85rem;
+        margin-top: 4px;
+    }
+
+    /* ---------- PROGRESS ---------- */
+
+    .progress-label {
+        font-size: 0.85rem;
+        color: #737780;
+        margin-bottom: 4px;
+    }
+
+    /* ---------- MOBILE ---------- */
+
+    @media (max-width: 768px) {
+
+        .block-container {
+            padding: 1rem;
+        }
+
+        h1 {
+            font-size: 1.9rem !important;
+        }
+
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ============================================================
+# SUPABASE
+# ============================================================
+
+@st.cache_resource
+def get_supabase() -> Client:
+
+    return create_client(
+        st.secrets["SUPABASE_URL"],
+        st.secrets["SUPABASE_KEY"],
     )
 
-with col2:
-    st.metric(
-        "Protein",
-        f"{total_protein:.1f} g",
-        f"{PROTEIN_TARGET - total_protein:.1f} g remaining"
+
+supabase = get_supabase()
+
+
+# ============================================================
+# SESSION STATE
+# ============================================================
+
+if "session" not in st.session_state:
+    st.session_state.session = None
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+
+# ============================================================
+# AUTHENTICATION
+# ============================================================
+
+def login_screen():
+
+    st.markdown(
+        """
+        <div style="
+            max-width:460px;
+            margin:80px auto;
+            text-align:center;
+        ">
+            <div style="font-size:3rem;">🥗</div>
+            <h1>Macro</h1>
+            <p style="color:#737780;">
+                Your personal nutrition tracker.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-with col3:
-    st.metric(
-        "Carbs",
-        f"{total_carbs:.1f} g",
-        f"{CARB_TARGET - total_carbs:.1f} g remaining"
+    tab_login, tab_signup = st.tabs(
+        ["Log in", "Create account"]
     )
 
-with col4:
-    st.metric(
-        "Fat",
-        f"{total_fat:.1f} g",
-        f"{FAT_TARGET - total_fat:.1f} g remaining"
-    )
+    with tab_login:
 
-# ---------------------------------------------------------
-# PROGRESS BARS
-# ---------------------------------------------------------
-
-st.write("")
-
-st.write("Calories")
-st.progress(
-    min(total_calories / CALORIE_TARGET, 1.0)
-)
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.write("Protein")
-    st.progress(min(total_protein / PROTEIN_TARGET, 1.0))
-
-with col2:
-    st.write("Carbs")
-    st.progress(min(total_carbs / CARB_TARGET, 1.0))
-
-with col3:
-    st.write("Fat")
-    st.progress(min(total_fat / FAT_TARGET, 1.0))
-
-st.divider()
-
-# ---------------------------------------------------------
-# ADD FOOD
-# ---------------------------------------------------------
-
-st.subheader("➕ Add Food")
-
-meal = st.selectbox(
-    "Meal",
-    ["Breakfast", "Lunch", "Dinner", "Snack"]
-)
-
-food_names = list(st.session_state.foods.keys())
-
-selected_food = st.selectbox(
-    "Food",
-    food_names
-)
-
-quantity = st.number_input(
-    "Quantity (grams)",
-    min_value=1.0,
-    value=100.0,
-    step=1.0
-)
-
-food = st.session_state.foods[selected_food]
-
-multiplier = quantity / 100
-
-calories = food["calories"] * multiplier
-protein = food["protein"] * multiplier
-carbs = food["carbs"] * multiplier
-fat = food["fat"] * multiplier
-
-st.write(
-    f"**{quantity:.0f}g {selected_food}:** "
-    f"{calories:.0f} kcal · "
-    f"P {protein:.1f}g · "
-    f"C {carbs:.1f}g · "
-    f"F {fat:.1f}g"
-)
-
-if st.button("Add to diary", type="primary"):
-
-    st.session_state.food_log.append({
-        "meal": meal,
-        "food": selected_food,
-        "quantity": quantity,
-        "calories": calories,
-        "protein": protein,
-        "carbs": carbs,
-        "fat": fat
-    })
-
-    st.rerun()
-
-st.divider()
-
-# ---------------------------------------------------------
-# TODAY'S FOOD
-# ---------------------------------------------------------
-
-st.subheader("🍽️ Today's Food")
-
-if not st.session_state.food_log:
-
-    st.info("Nothing logged yet. Add your first food above!")
-
-else:
-
-    meals = ["Breakfast", "Lunch", "Dinner", "Snack"]
-
-    for current_meal in meals:
-
-        meal_items = [
-            item
-            for item in st.session_state.food_log
-            if item["meal"] == current_meal
-        ]
-
-        if not meal_items:
-            continue
-
-        meal_calories = sum(
-            item["calories"]
-            for item in meal_items
+        email = st.text_input(
+            "Email",
+            key="login_email"
         )
 
-        st.markdown(
-            f"### {current_meal} — {meal_calories:.0f} kcal"
+        password = st.text_input(
+            "Password",
+            type="password",
+            key="login_password"
         )
 
-        for index, item in enumerate(
-            meal_items
+        if st.button(
+            "Log in",
+            type="primary",
+            use_container_width=True,
         ):
 
-            col1, col2, col3 = st.columns(
-                [4, 2, 1]
+            try:
+
+                response = supabase.auth.sign_in_with_password(
+                    {
+                        "email": email,
+                        "password": password,
+                    }
+                )
+
+                st.session_state.session = response.session
+                st.session_state.user = response.user
+
+                st.rerun()
+
+            except Exception as e:
+
+                st.error(
+                    "Could not log in. Check your email and password."
+                )
+
+    with tab_signup:
+
+        email = st.text_input(
+            "Email",
+            key="signup_email"
+        )
+
+        password = st.text_input(
+            "Password",
+            type="password",
+            key="signup_password"
+        )
+
+        if st.button(
+            "Create account",
+            use_container_width=True,
+        ):
+
+            try:
+
+                response = supabase.auth.sign_up(
+                    {
+                        "email": email,
+                        "password": password,
+                    }
+                )
+
+                if response.session:
+
+                    st.session_state.session = response.session
+                    st.session_state.user = response.user
+
+                    st.success("Account created!")
+                    st.rerun()
+
+                else:
+
+                    st.success(
+                        "Account created. Check your email to verify it."
+                    )
+
+            except Exception as e:
+
+                st.error(str(e))
+
+
+# ============================================================
+# PROFILE
+# ============================================================
+
+def get_profile():
+
+    user_id = st.session_state.user.id
+
+    response = (
+        supabase
+        .table("profiles")
+        .select("*")
+        .eq("id", user_id)
+        .maybe_single()
+        .execute()
+    )
+
+    return response.data
+
+
+def save_profile(data):
+
+    user_id = st.session_state.user.id
+
+    data["id"] = user_id
+
+    supabase \
+        .table("profiles") \
+        .upsert(data) \
+        .execute()
+
+
+# ============================================================
+# BMR / TDEE CALCULATOR
+# ============================================================
+
+def calculate_bmr(
+    sex,
+    weight,
+    height,
+    age,
+):
+
+    # Mifflin-St Jeor
+    if sex == "male":
+
+        return (
+            10 * weight
+            + 6.25 * height
+            - 5 * age
+            + 5
+        )
+
+    elif sex == "female":
+
+        return (
+            10 * weight
+            + 6.25 * height
+            - 5 * age
+            - 161
+        )
+
+    else:
+
+        # Neutral midpoint when "other" is selected
+        return (
+            10 * weight
+            + 6.25 * height
+            - 5 * age
+            - 78
+        )
+
+
+ACTIVITY_MULTIPLIERS = {
+    "Sedentary": 1.2,
+    "Lightly active": 1.375,
+    "Moderately active": 1.55,
+    "Very active": 1.725,
+    "Extremely active": 1.9,
+}
+
+
+def calculate_targets(
+    bmr,
+    activity,
+    goal,
+    weekly_change,
+):
+
+    tdee = bmr * ACTIVITY_MULTIPLIERS[activity]
+
+    if goal == "Lose weight":
+
+        calories = tdee - (
+            abs(weekly_change) * 1100
+        )
+
+    elif goal == "Gain weight":
+
+        calories = tdee + (
+            abs(weekly_change) * 1100
+        )
+
+    else:
+
+        calories = tdee
+
+    calories = max(calories, 1200)
+
+    # Protein-first approach
+    protein = 1.8 * profile_weight
+
+    # Fat around 25% of calories
+    fat = (calories * 0.25) / 9
+
+    # Remaining calories go to carbs
+    carbs = (
+        calories
+        - (protein * 4)
+        - (fat * 9)
+    ) / 4
+
+    return (
+        round(tdee),
+        round(calories),
+        round(protein),
+        round(carbs),
+        round(fat),
+    )
+
+
+# ============================================================
+# FOOD API
+# ============================================================
+
+OFF_URL = "https://world.openfoodfacts.org"
+
+
+def search_open_food_facts(query):
+
+    url = f"{OFF_URL}/cgi/search.pl"
+
+    params = {
+        "search_terms": query,
+        "search_simple": 1,
+        "action": "process",
+        "json": 1,
+        "page_size": 12,
+        "fields": (
+            "code,"
+            "product_name,"
+            "brands,"
+            "quantity,"
+            "image_front_small_url,"
+            "nutriments"
+        ),
+    }
+
+    headers = {
+        "User-Agent": (
+            "PersonalMacroTracker/1.0 "
+            "(personal nutrition app)"
+        )
+    }
+
+    try:
+
+        response = requests.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=10,
+        )
+
+        response.raise_for_status()
+
+        return response.json().get(
+            "products",
+            []
+        )
+
+    except Exception:
+
+        return []
+
+
+def get_product_by_barcode(barcode):
+
+    url = (
+        f"{OFF_URL}/api/v2/product/"
+        f"{barcode}.json"
+    )
+
+    headers = {
+        "User-Agent": (
+            "PersonalMacroTracker/1.0 "
+            "(personal nutrition app)"
+        )
+    }
+
+    try:
+
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=10,
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if data.get("status") == 1:
+
+            return data.get("product")
+
+    except Exception:
+
+        pass
+
+    return None
+
+
+def nutrition_from_product(product):
+
+    nutrients = product.get(
+        "nutriments",
+        {}
+    )
+
+    return {
+        "calories": nutrients.get(
+            "energy-kcal_100g",
+            0
+        ) or 0,
+
+        "protein": nutrients.get(
+            "proteins_100g",
+            0
+        ) or 0,
+
+        "carbs": nutrients.get(
+            "carbohydrates_100g",
+            0
+        ) or 0,
+
+        "fat": nutrients.get(
+            "fat_100g",
+            0
+        ) or 0,
+
+        "fiber": nutrients.get(
+            "fiber_100g",
+            0
+        ) or 0,
+
+        "sugar": nutrients.get(
+            "sugars_100g",
+            0
+        ) or 0,
+
+        "sodium": nutrients.get(
+            "sodium_100g",
+            0
+        ) or 0,
+    }
+
+
+# ============================================================
+# SAVE FOOD TO CACHE
+# ============================================================
+
+def cache_food(product):
+
+    nutrients = nutrition_from_product(
+        product
+    )
+
+    data = {
+
+        "external_id": product.get("code"),
+
+        "source": "open_food_facts",
+
+        "barcode": product.get("code"),
+
+        "name": (
+            product.get("product_name")
+            or "Unknown food"
+        ),
+
+        "brand": product.get(
+            "brands"
+        ),
+
+        "serving_size": None,
+
+        "serving_unit": "g",
+
+        "calories": nutrients["calories"],
+
+        "protein": nutrients["protein"],
+
+        "carbs": nutrients["carbs"],
+
+        "fat": nutrients["fat"],
+
+        "fiber": nutrients["fiber"],
+
+        "sugar": nutrients["sugar"],
+
+        "sodium": nutrients["sodium"],
+
+        "image_url": product.get(
+            "image_front_small_url"
+        ),
+
+    }
+
+    try:
+
+        result = (
+            supabase
+            .table("foods")
+            .upsert(
+                data,
+                on_conflict="source,external_id"
             )
+            .execute()
+        )
+
+        return result.data[0]
+
+    except Exception:
+
+        return None
+
+
+# ============================================================
+# DASHBOARD
+# ============================================================
+
+def dashboard(profile):
+
+    st.title("Good to see you 👋")
+
+    st.caption(
+        date.today().strftime(
+            "%A, %d %B %Y"
+        )
+    )
+
+    target_calories = (
+        profile.get("calorie_target")
+        or 0
+    )
+
+    target_protein = (
+        profile.get("protein_target")
+        or 0
+    )
+
+    target_carbs = (
+        profile.get("carb_target")
+        or 0
+    )
+
+    target_fat = (
+        profile.get("fat_target")
+        or 0
+    )
+
+    today_start = (
+        f"{date.today()}T00:00:00"
+    )
+
+    logs = (
+        supabase
+        .table("food_logs")
+        .select("*")
+        .eq(
+            "user_id",
+            st.session_state.user.id
+        )
+        .gte(
+            "eaten_at",
+            today_start
+        )
+        .execute()
+        .data
+    )
+
+    total_calories = sum(
+        float(x["calories"] or 0)
+        for x in logs
+    )
+
+    total_protein = sum(
+        float(x["protein"] or 0)
+        for x in logs
+    )
+
+    total_carbs = sum(
+        float(x["carbs"] or 0)
+        for x in logs
+    )
+
+    total_fat = sum(
+        float(x["fat"] or 0)
+        for x in logs
+    )
+
+    st.subheader("Today's overview")
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.metric(
+            "Calories",
+            f"{total_calories:.0f}",
+            f"{target_calories - total_calories:.0f} left",
+        )
+
+    with c2:
+        st.metric(
+            "Protein",
+            f"{total_protein:.0f} g",
+            f"{target_protein - total_protein:.0f} g left",
+        )
+
+    with c3:
+        st.metric(
+            "Carbs",
+            f"{total_carbs:.0f} g",
+            f"{target_carbs - total_carbs:.0f} g left",
+        )
+
+    with c4:
+        st.metric(
+            "Fat",
+            f"{total_fat:.0f} g",
+            f"{target_fat - total_fat:.0f} g left",
+        )
+
+    st.write("")
+
+    if target_calories:
+        st.progress(
+            min(
+                total_calories
+                / target_calories,
+                1.0,
+            )
+        )
+
+    st.divider()
+
+    st.subheader("Today's meals")
+
+    meals = [
+        ("breakfast", "Breakfast"),
+        ("lunch", "Lunch"),
+        ("dinner", "Dinner"),
+        ("snack", "Snacks"),
+    ]
+
+    for meal_key, meal_name in meals:
+
+        meal_logs = [
+            x
+            for x in logs
+            if x["meal"] == meal_key
+        ]
+
+        meal_total = sum(
+            float(x["calories"] or 0)
+            for x in meal_logs
+        )
+
+        with st.container(border=True):
+
+            col1, col2 = st.columns([4, 1])
 
             with col1:
-                st.write(
-                    f"**{item['food']}** "
-                    f"({item['quantity']:.0f}g)"
+                st.markdown(
+                    f"### {meal_name}"
                 )
 
             with col2:
-                st.write(
-                    f"{item['calories']:.0f} kcal"
+                st.markdown(
+                    f"**{meal_total:.0f} kcal**"
                 )
 
-            with col3:
+            if meal_logs:
 
-                if st.button(
-                    "✕",
-                    key=f"delete_{current_meal}_{index}"
+                for item in meal_logs:
+
+                    cols = st.columns(
+                        [4, 2, 1]
+                    )
+
+                    with cols[0]:
+                        st.write(
+                            item["food_name"]
+                        )
+
+                    with cols[1]:
+                        st.write(
+                            f'{item["quantity"]:.0f}'
+                            f'{item["unit"]}'
+                        )
+
+                    with cols[2]:
+
+                        if st.button(
+                            "×",
+                            key=f"delete_{item['id']}",
+                        ):
+
+                            (
+                                supabase
+                                .table("food_logs")
+                                .delete()
+                                .eq(
+                                    "id",
+                                    item["id"]
+                                )
+                                .execute()
+                            )
+
+                            st.rerun()
+
+            else:
+
+                st.caption(
+                    "Nothing logged."
+                )
+
+
+# ============================================================
+# GOALS PAGE
+# ============================================================
+
+def goals_page(profile):
+
+    st.title("Your goals")
+    st.caption(
+        "Calculate your targets or set them manually."
+    )
+
+    st.subheader(
+        "Your information"
+    )
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+
+        age = st.number_input(
+            "Age",
+            min_value=13,
+            max_value=100,
+            value=int(
+                profile.get("age") or 25
+            ),
+        )
+
+        height = st.number_input(
+            "Height (cm)",
+            min_value=100.0,
+            max_value=250.0,
+            value=float(
+                profile.get("height_cm") or 180
+            ),
+        )
+
+        weight = st.number_input(
+            "Weight (kg)",
+            min_value=30.0,
+            max_value=300.0,
+            value=float(
+                profile.get("weight_kg") or 80
+            ),
+        )
+
+    with c2:
+
+        sex = st.selectbox(
+            "Sex",
+            ["male", "female", "other"],
+            index=[
+                "male",
+                "female",
+                "other",
+            ].index(
+                profile.get("sex")
+                or "male"
+            ),
+        )
+
+        activity = st.selectbox(
+            "Activity level",
+            list(
+                ACTIVITY_MULTIPLIERS.keys()
+            ),
+        )
+
+        goal = st.selectbox(
+            "Goal",
+            [
+                "Lose weight",
+                "Maintain",
+                "Gain weight",
+            ],
+        )
+
+    weekly_change = st.number_input(
+        "Desired weekly weight change (kg)",
+        min_value=0.0,
+        max_value=2.0,
+        value=0.5,
+        step=0.1,
+    )
+
+    global profile_weight
+    profile_weight = weight
+
+    if st.button(
+        "🧮 Calculate my targets",
+        type="primary",
+    ):
+
+        bmr = calculate_bmr(
+            sex,
+            weight,
+            height,
+            age,
+        )
+
+        tdee = (
+            bmr
+            * ACTIVITY_MULTIPLIERS[activity]
+        )
+
+        if goal == "Lose weight":
+            calories = tdee - (
+                weekly_change * 1100
+            )
+
+        elif goal == "Gain weight":
+            calories = tdee + (
+                weekly_change * 1100
+            )
+
+        else:
+            calories = tdee
+
+        calories = max(
+            calories,
+            1200,
+        )
+
+        protein = weight * 1.8
+
+        fat = (
+            calories * 0.25
+        ) / 9
+
+        carbs = (
+            calories
+            - protein * 4
+            - fat * 9
+        ) / 4
+
+        st.session_state.calculated_targets = {
+            "bmr": round(bmr),
+            "tdee": round(tdee),
+            "calories": round(calories),
+            "protein": round(protein),
+            "carbs": round(carbs),
+            "fat": round(fat),
+        }
+
+    if (
+        "calculated_targets"
+        in st.session_state
+    ):
+
+        calc = (
+            st.session_state
+            .calculated_targets
+        )
+
+        st.divider()
+
+        st.subheader(
+            "Suggested targets"
+        )
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            st.metric(
+                "BMR",
+                f"{calc['bmr']} kcal",
+            )
+
+            st.metric(
+                "Estimated TDEE",
+                f"{calc['tdee']} kcal",
+            )
+
+        with c2:
+
+            st.metric(
+                "Suggested calories",
+                f"{calc['calories']} kcal",
+            )
+
+            st.write(
+                f"Protein: **{calc['protein']} g**"
+            )
+
+            st.write(
+                f"Carbs: **{calc['carbs']} g**"
+            )
+
+            st.write(
+                f"Fat: **{calc['fat']} g**"
+            )
+
+        if st.button(
+            "Use these targets",
+            type="primary",
+        ):
+
+            save_profile(
+                {
+                    "age": age,
+                    "sex": sex,
+                    "height_cm": height,
+                    "weight_kg": weight,
+                    "goal": (
+                        "lose_weight"
+                        if goal == "Lose weight"
+                        else
+                        "gain_weight"
+                        if goal == "Gain weight"
+                        else
+                        "maintain"
+                    ),
+                    "activity_level": (
+                        activity
+                        .lower()
+                        .replace(
+                            " ",
+                            "_"
+                        )
+                    ),
+                    "calorie_target": calc[
+                        "calories"
+                    ],
+                    "protein_target": calc[
+                        "protein"
+                    ],
+                    "carb_target": calc[
+                        "carbs"
+                    ],
+                    "fat_target": calc[
+                        "fat"
+                    ],
+                    "weekly_weight_change": (
+                        weekly_change
+                    ),
+                }
+            )
+
+            st.success(
+                "Your targets have been saved."
+            )
+
+            st.rerun()
+
+    st.divider()
+
+    st.subheader(
+        "Or set them manually"
+    )
+
+    current_calories = float(
+        profile.get(
+            "calorie_target"
+        ) or 2000
+    )
+
+    current_protein = float(
+        profile.get(
+            "protein_target"
+        ) or 150
+    )
+
+    current_carbs = float(
+        profile.get(
+            "carb_target"
+        ) or 200
+    )
+
+    current_fat = float(
+        profile.get(
+            "fat_target"
+        ) or 65
+    )
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+
+        manual_calories = st.number_input(
+            "Calories",
+            min_value=500.0,
+            max_value=10000.0,
+            value=current_calories,
+            step=50.0,
+        )
+
+        manual_protein = st.number_input(
+            "Protein (g)",
+            min_value=0.0,
+            max_value=1000.0,
+            value=current_protein,
+            step=5.0,
+        )
+
+    with c2:
+
+        manual_carbs = st.number_input(
+            "Carbs (g)",
+            min_value=0.0,
+            max_value=1000.0,
+            value=current_carbs,
+            step=5.0,
+        )
+
+        manual_fat = st.number_input(
+            "Fat (g)",
+            min_value=0.0,
+            max_value=1000.0,
+            value=current_fat,
+            step=5.0,
+        )
+
+    if st.button(
+        "Save manual targets",
+    ):
+
+        save_profile(
+            {
+                "age": age,
+                "sex": sex,
+                "height_cm": height,
+                "weight_kg": weight,
+                "calorie_target": manual_calories,
+                "protein_target": manual_protein,
+                "carb_target": manual_carbs,
+                "fat_target": manual_fat,
+            }
+        )
+
+        st.success(
+            "Your goals have been updated."
+        )
+
+        st.rerun()
+
+
+# ============================================================
+# ADD FOOD PAGE
+# ============================================================
+
+def add_food_page():
+
+    st.title("Add food")
+
+    tab_search, tab_barcode, tab_quick = st.tabs(
+        [
+            "🔎 Search",
+            "▣ Barcode",
+            "⚡ Quick add",
+        ]
+    )
+
+    # --------------------------------------------------------
+    # SEARCH
+    # --------------------------------------------------------
+
+    with tab_search:
+
+        query = st.text_input(
+            "Search the food database",
+            placeholder=(
+                "e.g. Greek yogurt, chicken breast..."
+            ),
+        )
+
+        if query:
+
+            products = search_open_food_facts(
+                query
+            )
+
+            if not products:
+
+                st.info(
+                    "No results found."
+                )
+
+            for i, product in enumerate(
+                products
+            ):
+
+                name = (
+                    product.get(
+                        "product_name"
+                    )
+                    or "Unknown product"
+                )
+
+                brand = (
+                    product.get("brands")
+                    or ""
+                )
+
+                nutrients = nutrition_from_product(
+                    product
+                )
+
+                with st.container(
+                    border=True
                 ):
 
-                    st.session_state.food_log.remove(
-                        item
+                    c1, c2 = st.columns(
+                        [4, 1]
+                    )
+
+                    with c1:
+
+                        st.markdown(
+                            f"### {name}"
+                        )
+
+                        if brand:
+                            st.caption(
+                                brand
+                            )
+
+                        st.write(
+                            f"{nutrients['calories']:.0f} kcal "
+                            f"· P {nutrients['protein']:.1f}g "
+                            f"· C {nutrients['carbs']:.1f}g "
+                            f"· F {nutrients['fat']:.1f}g "
+                            f"per 100g"
+                        )
+
+                    with c2:
+
+                        if st.button(
+                            "Add",
+                            key=f"select_{i}",
+                            type="primary",
+                        ):
+
+                            st.session_state.selected_product = (
+                                product
+                            )
+
+                            st.rerun()
+
+        # Selected food
+
+        if (
+            "selected_product"
+            in st.session_state
+        ):
+
+            product = (
+                st.session_state
+                .selected_product
+            )
+
+            nutrients = nutrition_from_product(
+                product
+            )
+
+            st.divider()
+
+            st.subheader(
+                product.get(
+                    "product_name"
+                )
+                or "Food"
+            )
+
+            meal = st.selectbox(
+                "Meal",
+                [
+                    "breakfast",
+                    "lunch",
+                    "dinner",
+                    "snack",
+                ],
+            )
+
+            quantity = st.number_input(
+                "Quantity (g)",
+                min_value=1.0,
+                value=100.0,
+                step=1.0,
+            )
+
+            multiplier = (
+                quantity / 100
+            )
+
+            calories = (
+                nutrients["calories"]
+                * multiplier
+            )
+
+            protein = (
+                nutrients["protein"]
+                * multiplier
+            )
+
+            carbs = (
+                nutrients["carbs"]
+                * multiplier
+            )
+
+            fat = (
+                nutrients["fat"]
+                * multiplier
+            )
+
+            st.info(
+                f"{calories:.0f} kcal · "
+                f"P {protein:.1f}g · "
+                f"C {carbs:.1f}g · "
+                f"F {fat:.1f}g"
+            )
+
+            if st.button(
+                "Add to diary",
+                type="primary",
+            ):
+
+                cached = cache_food(
+                    product
+                )
+
+                food_id = (
+                    cached["id"]
+                    if cached
+                    else None
+                )
+
+                supabase.table(
+                    "food_logs"
+                ).insert(
+                    {
+                        "user_id": (
+                            st.session_state
+                            .user.id
+                        ),
+                        "meal": meal,
+                        "food_id": food_id,
+                        "food_name": (
+                            product.get(
+                                "product_name"
+                            )
+                            or "Unknown food"
+                        ),
+                        "quantity": quantity,
+                        "unit": "g",
+                        "calories": calories,
+                        "protein": protein,
+                        "carbs": carbs,
+                        "fat": fat,
+                        "fiber": (
+                            nutrients["fiber"]
+                            * multiplier
+                        ),
+                        "sugar": (
+                            nutrients["sugar"]
+                            * multiplier
+                        ),
+                        "sodium": (
+                            nutrients["sodium"]
+                            * multiplier
+                        ),
+                    }
+                ).execute()
+
+                del st.session_state.selected_product
+
+                st.success(
+                    "Added to your diary."
+                )
+
+    # --------------------------------------------------------
+    # BARCODE
+    # --------------------------------------------------------
+
+    with tab_barcode:
+
+        st.subheader(
+            "Scan a barcode"
+        )
+
+        st.info(
+            "For now, enter the barcode manually. "
+            "We'll add camera scanning next."
+        )
+
+        barcode = st.text_input(
+            "Barcode",
+            placeholder="e.g. 3017620422003",
+        )
+
+        if st.button(
+            "Find product",
+            type="primary",
+        ):
+
+            if not barcode:
+
+                st.warning(
+                    "Enter a barcode first."
+                )
+
+            else:
+
+                product = get_product_by_barcode(
+                    barcode.strip()
+                )
+
+                if product:
+
+                    st.session_state.selected_product = (
+                        product
+                    )
+
+                    st.success(
+                        "Product found."
                     )
 
                     st.rerun()
 
-# ---------------------------------------------------------
-# FOOTER
-# ---------------------------------------------------------
+                else:
 
-st.divider()
+                    st.error(
+                        "That barcode wasn't found."
+                    )
 
-st.caption(
-    "Personal macro tracker • Version 1"
-)
+    # --------------------------------------------------------
+    # QUICK ADD
+    # --------------------------------------------------------
+
+    with tab_quick:
+
+        st.subheader(
+            "Quick macro entry"
+        )
+
+        st.caption(
+            "Useful when you already know the macros."
+        )
+
+        meal = st.selectbox(
+            "Meal",
+            [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack",
+            ],
+            key="quick_meal",
+        )
+
+        name = st.text_input(
+            "Name",
+            value="Quick entry",
+        )
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            calories = st.number_input(
+                "Calories",
+                min_value=0.0,
+                value=0.0,
+            )
+
+            protein = st.number_input(
+                "Protein (g)",
+                min_value=0.0,
+                value=0.0,
+            )
+
+        with c2:
+
+            carbs = st.number_input(
+                "Carbs (g)",
+                min_value=0.0,
+                value=0.0,
+            )
+
+            fat = st.number_input(
+                "Fat (g)",
+                min_value=0.0,
+                value=0.0,
+            )
+
+        if st.button(
+            "Add quick entry",
+            type="primary",
+        ):
+
+            supabase.table(
+                "quick_entries"
+            ).insert(
+                {
+                    "user_id": (
+                        st.session_state
+                        .user.id
+                    ),
+                    "meal": meal,
+                    "name": name,
+                    "calories": calories,
+                    "protein": protein,
+                    "carbs": carbs,
+                    "fat": fat,
+                }
+            ).execute()
+
+            st.success(
+                "Added."
+            )
+
+
+# ============================================================
+# APP ENTRY
+# ============================================================
+
+if st.session_state.user is None:
+
+    login_screen()
+
+    st.stop()
+
+
+# ============================================================
+# LOGGED-IN APP
+# ============================================================
+
+profile = get_profile()
+
+if profile is None:
+
+    save_profile({})
+
+    profile = get_profile()
+
+
+with st.sidebar:
+
+    st.markdown(
+        "# 🥗 Macro"
+    )
+
+    st.caption(
+        st.session_state.user.email
+    )
+
+    st.divider()
+
+    page = st.radio(
+        "Navigation",
+        [
+            "🏠 Dashboard",
+            "➕ Add Food",
+            "🎯 Goals",
+        ],
+        label_visibility="collapsed",
+    )
+
+    st.divider()
+
+    if st.button(
+        "Log out",
+        use_container_width=True,
+    ):
+
+        supabase.auth.sign_out()
+
+        st.session_state.session = None
+        st.session_state.user = None
+
+        st.rerun()
+
+
+# ============================================================
+# ROUTING
+# ============================================================
+
+if page == "🏠 Dashboard":
+
+    dashboard(profile)
+
+elif page == "➕ Add Food":
+
+    add_food_page()
+
+elif page == "🎯 Goals":
+
+    goals_page(profile)
