@@ -41,20 +41,21 @@ st.markdown(
     """
     <style>
 
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
     :root {
-        --bg: #0B0E1A;
-        --surface: #131829;
-        --surface-raised: #1A2036;
-        --border: #262C46;
-        --text: #ECEDF5;
-        --text-muted: #8B92AC;
-        --text-faint: #565D78;
-        --accent: #8B7CF6;
-        --accent-hover: #7A6AE8;
+        --bg: #080A12;
+        --surface-glass: rgba(19, 24, 41, 0.55);
+        --surface-raised-glass: rgba(26, 32, 54, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --glass-border-hover: rgba(139, 92, 246, 0.4);
+        --text: #F3F4F6;
+        --text-muted: #9CA3AF;
+        --text-faint: #6B7280;
+        --accent: #8B5CF6;
+        --accent-hover: #7C3AED;
         --accent-text: #FFFFFF;
-        --radius: 8px;
+        --radius: 16px;
     }
 
     html, body, * {
@@ -62,14 +63,18 @@ st.markdown(
             'Segoe UI', Roboto, sans-serif !important;
     }
 
-    /* ---------- GLOBAL ---------- */
+    /* ---------- GLOBAL & AMBIENT PURPLE BLOB ---------- */
 
     .stApp, [data-testid="stAppViewContainer"], .main {
-        background: var(--bg) !important;
+        background-color: var(--bg) !important;
+        background-image: 
+            radial-gradient(circle at 50% 35%, rgba(139, 92, 246, 0.22) 0%, rgba(124, 58, 237, 0.08) 35%, transparent 70%),
+            radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.12) 0%, transparent 40%) !important;
+        background-attachment: fixed !important;
     }
 
     header[data-testid="stHeader"] {
-        background: var(--bg) !important;
+        background: transparent !important;
     }
 
     .block-container {
@@ -80,11 +85,13 @@ st.markdown(
         padding-right: 1rem;
     }
 
-    /* ---------- SIDEBAR ---------- */
+    /* ---------- SIDEBAR (GLASSMORPHIC) ---------- */
 
     section[data-testid="stSidebar"] {
-        background: var(--surface) !important;
-        border-right: 1px solid var(--border);
+        background: var(--surface-glass) !important;
+        backdrop-filter: blur(20px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+        border-right: 1px solid var(--glass-border) !important;
     }
 
     section[data-testid="stSidebar"] * {
@@ -97,17 +104,19 @@ st.markdown(
     }
 
     section[data-testid="stSidebar"] hr {
-        border-color: var(--border) !important;
+        border-color: var(--glass-border) !important;
     }
 
     section[data-testid="stSidebar"] div[role="radiogroup"] label {
         border-radius: var(--radius);
         padding: 8px 10px;
         margin-bottom: 2px;
+        transition: all 0.2s ease;
     }
 
     section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
-        background: var(--surface-raised);
+        background: var(--surface-raised-glass);
+        border: 1px solid var(--glass-border-hover);
     }
 
     /* ---------- HEADINGS & TEXT ---------- */
@@ -118,8 +127,8 @@ st.markdown(
 
     h1 {
         font-size: 1.75rem !important;
-        font-weight: 600 !important;
-        letter-spacing: -0.02em;
+        font-weight: 700 !important;
+        letter-spacing: -0.025em;
     }
 
     h2 {
@@ -145,30 +154,38 @@ st.markdown(
     /* ---------- DIVIDERS ---------- */
 
     hr {
-        border-color: var(--border) !important;
+        border-color: var(--glass-border) !important;
         margin: 1.25rem 0 !important;
     }
 
-    /* ---------- METRIC CARDS ---------- */
+    /* ---------- METRIC CARDS (FROSTED GLASS) ---------- */
 
     div[data-testid="metric-container"] {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 14px;
-        box-shadow: none;
+        background: var(--surface-glass) !important;
+        backdrop-filter: blur(16px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: var(--radius) !important;
+        padding: 16px !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    div[data-testid="metric-container"]:hover {
+        border-color: var(--glass-border-hover) !important;
+        box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.15) !important;
     }
 
     div[data-testid="metric-container"] label {
         color: var(--text-muted) !important;
         font-size: 0.75rem !important;
         text-transform: uppercase;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.05em;
     }
 
     div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-        font-weight: 600;
-        font-size: 1.35rem;
+        font-weight: 700;
+        font-size: 1.45rem;
         color: var(--text) !important;
     }
 
@@ -176,41 +193,49 @@ st.markdown(
         font-size: 0.75rem;
     }
 
-    /* ---------- CONTAINERS / BORDERED BLOCKS ---------- */
+    /* ---------- CONTAINERS / BORDERED BLOCKS (FROSTED GLASS) ---------- */
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        border-color: var(--border) !important;
+        border: 1px solid var(--glass-border) !important;
         border-radius: var(--radius) !important;
-        background: var(--surface) !important;
+        background: var(--surface-glass) !important;
+        backdrop-filter: blur(16px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
     }
 
     /* ---------- BUTTONS ---------- */
 
     .stButton > button {
         border-radius: var(--radius);
-        border: 1px solid var(--border);
+        border: 1px solid var(--glass-border);
         font-weight: 500;
-        min-height: 40px;
-        background: var(--surface-raised) !important;
+        min-height: 42px;
+        background: var(--surface-raised-glass) !important;
         color: var(--text) !important;
+        backdrop-filter: blur(12px) !important;
         box-shadow: none;
+        transition: all 0.25s ease;
     }
 
     .stButton > button:hover {
         border-color: var(--accent);
         color: var(--accent) !important;
+        box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
     }
 
     .stButton > button[kind="primary"] {
         background: var(--accent) !important;
         border-color: var(--accent);
         color: var(--accent-text) !important;
+        box-shadow: 0 4px 20px rgba(139, 92, 246, 0.35);
     }
 
     .stButton > button[kind="primary"]:hover {
         background: var(--accent-hover) !important;
         border-color: var(--accent-hover);
         color: var(--accent-text) !important;
+        box-shadow: 0 6px 24px rgba(139, 92, 246, 0.5);
     }
 
     .stButton > button[kind="primary"] p {
@@ -220,15 +245,16 @@ st.markdown(
     /* ---------- TEXT / NUMBER INPUTS ---------- */
 
     input, textarea {
-        background: var(--surface) !important;
-        border: 1px solid var(--border) !important;
+        background: var(--surface-glass) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid var(--glass-border) !important;
         border-radius: var(--radius) !important;
         color: var(--text) !important;
     }
 
     input:focus, textarea:focus {
         border-color: var(--accent) !important;
-        box-shadow: 0 0 0 1px var(--accent) !important;
+        box-shadow: 0 0 12px rgba(139, 92, 246, 0.3) !important;
     }
 
     input::placeholder, textarea::placeholder {
@@ -237,14 +263,15 @@ st.markdown(
 
     div[data-baseweb="input"], div[data-baseweb="textarea"],
     div[data-baseweb="base-input"] {
-        background: var(--surface) !important;
-        border-color: var(--border) !important;
+        background: var(--surface-glass) !important;
+        border-color: var(--glass-border) !important;
+        border-radius: var(--radius) !important;
     }
 
     button[data-testid="stNumberInputStepDown"],
     button[data-testid="stNumberInputStepUp"] {
-        background: var(--surface) !important;
-        border-color: var(--border) !important;
+        background: var(--surface-glass) !important;
+        border-color: var(--glass-border) !important;
         color: var(--text) !important;
     }
 
@@ -255,54 +282,58 @@ st.markdown(
         color: var(--text-muted) !important;
     }
 
-    /* ---------- SELECT / DROPDOWN (incl. portal popover) ---------- */
+    /* ---------- SELECT / DROPDOWN ---------- */
 
     div[data-baseweb="select"] > div {
-        background: var(--surface) !important;
-        border-color: var(--border) !important;
+        background: var(--surface-glass) !important;
+        backdrop-filter: blur(12px) !important;
+        border-color: var(--glass-border) !important;
         color: var(--text) !important;
         border-radius: var(--radius) !important;
     }
 
     div[data-baseweb="popover"] ul[role="listbox"],
     div[data-baseweb="menu"] {
-        background: var(--surface-raised) !important;
-        border: 1px solid var(--border) !important;
+        background: #111526 !important;
+        backdrop-filter: blur(20px) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: var(--radius) !important;
     }
 
     li[role="option"] {
-        background: var(--surface-raised) !important;
+        background: transparent !important;
         color: var(--text) !important;
     }
 
     li[role="option"]:hover,
     li[aria-selected="true"] {
-        background: var(--surface) !important;
+        background: var(--surface-raised-glass) !important;
         color: var(--accent) !important;
     }
 
-    /* ---------- SEGMENTED RADIO (Category / Meal pickers) ----------
-       Scoped to .main so the sidebar nav radio (styled above) is
-       untouched. */
+    /* ---------- SEGMENTED RADIO ---------- */
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] {
         display: flex;
-        gap: 6px;
+        gap: 8px;
         flex-wrap: wrap;
     }
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] label {
-        background: var(--surface);
-        border: 1px solid var(--border);
+        background: var(--surface-glass);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
         border-radius: var(--radius);
-        padding: 8px 14px;
+        padding: 8px 16px;
         margin: 0 !important;
         cursor: pointer;
+        transition: all 0.2s ease;
     }
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
         background: var(--accent);
         border-color: var(--accent);
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
     }
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) p {
@@ -330,17 +361,18 @@ st.markdown(
     }
 
     div[data-baseweb="tab-border"] {
-        background-color: var(--border) !important;
+        background-color: var(--glass-border) !important;
     }
 
     /* ---------- PROGRESS ---------- */
 
     .stProgress > div > div > div {
-        background: var(--accent) !important;
+        background: linear-gradient(90deg, var(--accent), #A78BFA) !important;
     }
 
     .stProgress > div > div {
-        background: var(--border) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 999px;
     }
 
     .progress-label {
@@ -353,18 +385,18 @@ st.markdown(
 
     div[data-testid="stAlert"] {
         border-radius: var(--radius);
-        border: 1px solid var(--border);
-        background: var(--surface) !important;
+        border: 1px solid var(--glass-border);
+        background: var(--surface-glass) !important;
+        backdrop-filter: blur(16px) !important;
     }
 
     div[data-testid="stAlert"] p {
         color: var(--text) !important;
     }
 
-    /* ---------- MOBILE ---------- */
+    /* ---------- RESPONSIVE ---------- */
 
     @media (min-width: 768px) {
-
         .block-container {
             padding-top: 2.5rem;
         }
@@ -372,7 +404,6 @@ st.markdown(
         h1 {
             font-size: 2rem !important;
         }
-
     }
 
     </style>
