@@ -19,7 +19,13 @@ from services.openfoodfacts import (
     nutrition_from_product,
     search_products,
 )
-from services.supabase import cache_food, get_recent_foods, insert_food_log, insert_quick_entry
+from services.supabase import (
+    cache_food,
+    get_recent_foods,
+    insert_food_log,
+    insert_quick_entry,
+    update_food_cache,
+)
 
 MEALS = ["breakfast", "lunch", "dinner", "snack"]
 
@@ -196,11 +202,34 @@ def _render_editor(user_id, product):
 
     scaled = {k: v * multiplier for k, v in nutrients.items()}
 
-    st.info(
-        f"{scaled['calories']:.0f} kcal · "
-        f"P {scaled['protein']:.1f}g · "
-        f"C {scaled['carbs']:.1f}g · "
-        f"F {scaled['fat']:.1f}g"
+    st.markdown("Macros")
+    st.caption("Auto-calculated from the quantity above — edit if it looks off.")
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        final_calories = st.number_input(
+            "Calories", min_value=0.0, value=round(scaled["calories"], 1),
+            step=1.0, key=f"cal_override_{product_key}",
+        )
+        final_protein = st.number_input(
+            "Protein (g)", min_value=0.0, value=round(scaled["protein"], 1),
+            step=1.0, key=f"protein_override_{product_key}",
+        )
+
+    with c2:
+        final_carbs = st.number_input(
+            "Carbs (g)", min_value=0.0, value=round(scaled["carbs"], 1),
+            step=1.0, key=f"carbs_override_{product_key}",
+        )
+        final_fat = st.number_input(
+            "Fat (g)", min_value=0.0, value=round(scaled["fat"], 1),
+            step=1.0, key=f"fat_override_{product_key}",
+        )
+
+    save_correction = st.checkbox(
+        "Remember this correction for next time",
+        key=f"save_correction_{product_key}",
     )
 
     st.markdown("Meal")
@@ -216,35 +245,53 @@ def _render_editor(user_id, product):
 
     if st.button("Add to diary", type="primary", use_container_width=True):
 
-        if product.get("_food_id"):
-            food_id = product["_food_id"]
-        else:
-            cached = cache_food(product, nutrients)
-            food_id = cached["id"] if cached else None
+        final_nutrients = {
+            "calories": final_calories,
+            "protein": final_protein,
+            "carbs": final_carbs,
+            "fat": final_fat,
+            "fiber": scaled["fiber"],
+            "sugar": scaled["sugar"],
+            "sodium": scaled["sodium"],
+        }
 
-        insert_food_log(
-            user_id,
-            {
-                "meal": meal,
-                "food_id": food_id,
-                "food_name": name,
-                "food_type": food_type,
-                "quantity_value": count,
-                "quantity_unit": unit,
-                "calories": scaled["calories"],
-                "protein": scaled["protein"],
-                "carbs": scaled["carbs"],
-                "fat": scaled["fat"],
-                "fiber": scaled["fiber"],
-                "sugar": scaled["sugar"],
-                "sodium": scaled["sodium"],
-            },
-        )
+        try:
+            if product.get("_food_id"):
+                food_id = product["_food_id"]
+            else:
+                cached = cache_food(product, nutrients)
+                food_id = cached["id"] if cached else None
 
-        del st.session_state.selected_product
+            if save_correction and food_id and multiplier:
+                # Corrections are entered at this quantity's scale —
+                # back-solve to a per-100g basis before caching, since
+                # that's the basis every other lookup of this product
+                # scales from.
+                corrected_per_100g = {
+                    k: (v / multiplier) for k, v in final_nutrients.items()
+                }
+                update_food_cache(food_id, corrected_per_100g)
 
-        st.success("Added to your diary.")
-        st.rerun()
+            insert_food_log(
+                user_id,
+                {
+                    "meal": meal,
+                    "food_id": food_id,
+                    "food_name": name,
+                    "food_type": food_type,
+                    "quantity_value": count,
+                    "quantity_unit": unit,
+                    **final_nutrients,
+                },
+            )
+
+            del st.session_state.selected_product
+
+            st.toast("Added to your diary.")
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"Couldn't save this entry: {e}")
 
 
 # ============================================================
@@ -280,17 +327,20 @@ def _render_quick_add(user_id):
 
     if st.button("Add quick entry", type="primary"):
 
-        insert_quick_entry(
-            user_id,
-            {
-                "meal": meal,
-                "food_type": food_type,
-                "name": name,
-                "calories": calories,
-                "protein": protein,
-                "carbs": carbs,
-                "fat": fat,
-            },
-        )
+        try:
+            insert_quick_entry(
+                user_id,
+                {
+                    "meal": meal,
+                    "food_type": food_type,
+                    "name": name,
+                    "calories": calories,
+                    "protein": protein,
+                    "carbs": carbs,
+                    "fat": fat,
+                },
+            )
+            st.toast("Added.")
 
-        st.success("Added.")
+        except Exception as e:
+            st.error(f"Couldn't save this entry: {e}")
