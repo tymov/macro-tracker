@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import extra_streamlit_components as stx
 import streamlit as st
 
-from pages import add_food, dashboard, goals
+from views import add_food, dashboard, goals
 from services.supabase import get_profile, get_supabase
 
 
