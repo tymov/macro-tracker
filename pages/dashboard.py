@@ -43,7 +43,7 @@ def render(user_id, profile):
         toast_key = f"toast_goal_hit_{selected_day}"
         if not st.session_state.get(toast_key):
             st.session_state[toast_key] = True
-            st.toast("Daily goal reached.", icon=None)
+            st.toast("Daily goal reached.", icon=":material/celebration:")
 
     st.divider()
 
@@ -53,7 +53,7 @@ def render(user_id, profile):
 
     # ---------- MEALS ----------
 
-    st.subheader("Meals")
+    st.subheader(":material/restaurant: Meals")
 
     meal_logs = [x for x in logs if (x.get("food_type") or "food") == "food"]
 
@@ -88,7 +88,7 @@ def render(user_id, profile):
     # ---------- DRINKS ----------
 
     st.divider()
-    st.subheader("Drinks")
+    st.subheader(":material/local_cafe: Drinks")
 
     drink_logs = [x for x in logs if (x.get("food_type") or "food") == "drink"]
 
@@ -124,13 +124,13 @@ def _render_history_strip(logs_by_day, target_calories, range_start):
             is_selected = day == st.session_state.selected_day
             is_future = day > date.today()
 
-            marker = "\u2713" if hit_goal else ("\u2013" if has_data else "")
-            label = f"{day.strftime('%a')} {day.day}" + (f"  {marker}" if marker else "")
+            label = f"{day.strftime('%a')}\n{day.day}"
 
             with cols[i]:
                 st.button(
                     label,
                     key=f"day_{day}",
+                    icon=":material/check_circle:" if hit_goal else None,
                     use_container_width=True,
                     disabled=is_future,
                     type="primary" if is_selected else "secondary",
@@ -144,6 +144,16 @@ def _select_day(day):
 
 
 def _render_rings(profile, logs):
+    """Renders the four macro rings as one flat block of HTML.
+
+    Streamlit's markdown renderer only stays in "raw HTML" mode for a
+    contiguous block of markup — a blank line inside an
+    unsafe_allow_html string ends that block early and everything
+    after it gets treated as plain markdown text (which is why the
+    tags themselves were showing up on screen). Building this as a
+    single joined string with no blank lines, and no per-line
+    leading whitespace, keeps the whole thing as one HTML block.
+    """
 
     totals = {
         "Calories": (
@@ -164,25 +174,23 @@ def _render_rings(profile, logs):
         ),
     }
 
-    rings_html = '<div class="ring-row">'
+    items_html = []
 
     for label, (value, target) in totals.items():
 
         pct = min(value / target, 1.0) if target else 0
         unit = "" if label == "Calories" else "g"
 
-        rings_html += f"""
-        <div class="ring-item">
-            <div class="ring" style="--pct:{pct};">
-                <div class="ring-inner">
-                    <div class="ring-value">{value:.0f}</div>
-                </div>
-            </div>
-            <div class="ring-label">{label}</div>
-            <div class="ring-target">of {target:.0f}{unit}</div>
-        </div>
-        """
+        items_html.append(
+            f'<div class="ring-item">'
+            f'<div class="ring" style="--pct:{pct};">'
+            f'<div class="ring-inner"><div class="ring-value">{value:.0f}</div></div>'
+            f'</div>'
+            f'<div class="ring-label">{label}</div>'
+            f'<div class="ring-target">of {target:.0f}{unit}</div>'
+            f'</div>'
+        )
 
-    rings_html += "</div>"
+    rings_html = '<div class="ring-row">' + "".join(items_html) + "</div>"
 
     st.markdown(rings_html, unsafe_allow_html=True)
