@@ -13,48 +13,44 @@ from services.supabase import get_profile, get_supabase
 
 st.set_page_config(page_title="Macro", layout="wide")
 
+# IMPORTANT: delete the top-level `pages/` folder from this repo.
+# Streamlit auto-generates its own sidebar navigation for any folder
+# literally named `pages/` next to app.py, regardless of whether
+# anything imports from it. That's the second nav you're seeing —
+# app.py never imports pages/, it only imports views/ below, so
+# pages/ is dead weight that's actively fighting the custom nav.
+# `components/macro_progress.py` is similarly unused and can go too.
+
 
 # ============================================================
-# THEME
+# THEME — mobile-app-first, minimal, dark navy/purple
 # ============================================================
-#
-# Hardcoded dark navy/purple design system — does not follow the
-# browser/OS light-dark preference. Paired with .streamlit/config.toml
-# (base="dark" + matching colors) so native BaseWeb components that
-# render outside this DOM tree — dropdown menus, calendar popovers,
-# tooltips — inherit the same palette instead of falling back to
-# Streamlit's stock dark theme.
-#
-# Navigation lives in a single st.container(key="main_nav") block —
-# giving it a stable "st-key-main_nav" class is what lets the media
-# query below pin it to the bottom of the screen on mobile instead
-# of the old collapsible sidebar, which was the root of the "tabs
-# show nothing" mobile bug (sidebar collapse/expand is the flakiest
-# part of Streamlit on small screens).
 
 st.markdown(
     """
     <style>
 
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
     :root {
-        --bg: #0B0E1A;
-        --surface: #131829;
-        --surface-raised: #1A2036;
-        --border: #262C46;
-        --text: #ECEDF5;
-        --text-muted: #8B92AC;
+        --bg: #0B0E17;
+        --surface: #141826;
+        --surface-raised: #1B2033;
+        --border: #232840;
+        --text: #F1F2F8;
+        --text-muted: #9298B0;
         --text-faint: #565D78;
-        --accent: #8B7CF6;
-        --accent-hover: #7A6AE8;
+        --accent: #8B5CF6;
+        --accent-soft: rgba(139, 92, 246, 0.14);
+        --accent-hover: #7C4DEE;
         --accent-text: #FFFFFF;
-        --radius: 8px;
+        --danger: #F87171;
+        --radius-lg: 18px;
+        --radius-md: 14px;
+        --radius-sm: 10px;
     }
 
-    html, body, * {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont,
-            'Segoe UI', Roboto, sans-serif !important;
+    html, body, [class*="css"] {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+            Inter, Roboto, sans-serif;
     }
 
     /* ---------- GLOBAL ---------- */
@@ -65,91 +61,101 @@ st.markdown(
 
     header[data-testid="stHeader"] {
         background: var(--bg) !important;
+        height: 0;
+    }
+
+    /* Kill Streamlit's own multipage sidebar/nav entirely, in case
+       pages/ hasn't been deleted yet — belt and suspenders. */
+    [data-testid="stSidebar"],
+    [data-testid="stSidebarNav"],
+    [data-testid="collapsedControl"] {
+        display: none !important;
     }
 
     .block-container {
-        max-width: 720px;
-        padding-top: 1.5rem;
-        padding-bottom: 3rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 12px 16px 96px 16px;
     }
 
-    /* ---------- HEADINGS & TEXT ---------- */
+    /* ---------- TYPE ---------- */
 
-    h1, h2, h3, h4, h5, h6 {
-        color: var(--text) !important;
-    }
+    h1, h2, h3, h4, h5, h6 { color: var(--text) !important; }
 
     h1 {
-        font-size: 1.75rem !important;
-        font-weight: 600 !important;
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
         letter-spacing: -0.02em;
+        margin-bottom: 0.25rem !important;
     }
 
-    h2 { font-size: 1.15rem !important; font-weight: 600 !important; }
-    h3 { font-size: 1rem !important; font-weight: 600 !important; }
+    h2 { font-size: 1.05rem !important; font-weight: 600 !important; }
+    h3 { font-size: 0.95rem !important; font-weight: 600 !important; }
 
     p, span, label, div, li { color: var(--text); }
 
     .stCaption, small, [data-testid="stCaptionContainer"] {
         color: var(--text-muted) !important;
+        font-size: 0.8rem !important;
     }
 
     a { color: var(--accent) !important; }
 
     hr {
         border-color: var(--border) !important;
-        margin: 1.25rem 0 !important;
+        margin: 1rem 0 !important;
+        opacity: 0.6;
     }
 
-    /* ---------- METRIC CARDS ---------- */
+    /* ---------- CARDS / BORDERED CONTAINERS ---------- */
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius-lg) !important;
+        background: var(--surface) !important;
+    }
+
+    /* ---------- METRICS ---------- */
 
     div[data-testid="metric-container"] {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 14px;
-        box-shadow: none;
+        border-radius: var(--radius-md);
+        padding: 12px 14px;
     }
 
     div[data-testid="metric-container"] label {
         color: var(--text-muted) !important;
-        font-size: 0.75rem !important;
+        font-size: 0.7rem !important;
         text-transform: uppercase;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.04em;
     }
 
     div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-        font-weight: 600;
-        font-size: 1.35rem;
+        font-weight: 700;
+        font-size: 1.25rem;
         color: var(--text) !important;
-    }
-
-    /* ---------- CONTAINERS / BORDERED BLOCKS ---------- */
-
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        border-color: var(--border) !important;
-        border-radius: var(--radius) !important;
-        background: var(--surface) !important;
     }
 
     /* ---------- BUTTONS ---------- */
 
     .stButton > button {
-        border-radius: var(--radius);
+        border-radius: var(--radius-sm);
         border: 1px solid var(--border);
         font-weight: 500;
-        min-height: 40px;
+        min-height: 42px;
         background: var(--surface-raised) !important;
         color: var(--text) !important;
         box-shadow: none;
+        transition: background 0.15s ease, border-color 0.15s ease;
     }
 
     .stButton > button:hover {
         border-color: var(--accent);
         color: var(--accent) !important;
     }
+
+    .stButton > button p { display: flex; align-items: center; gap: 6px; }
 
     .stButton > button[kind="primary"] {
         background: var(--accent) !important;
@@ -160,17 +166,23 @@ st.markdown(
     .stButton > button[kind="primary"]:hover {
         background: var(--accent-hover) !important;
         border-color: var(--accent-hover);
-        color: var(--accent-text) !important;
     }
 
     .stButton > button[kind="primary"] p { color: var(--accent-text) !important; }
 
-    /* ---------- TEXT / NUMBER INPUTS ---------- */
+    /* Compact icon-only buttons (e.g. remove row) */
+    .stButton > button:has(> div > span[data-testid="stIconMaterial"]:only-child) {
+        min-height: 34px;
+        min-width: 34px;
+        padding: 0;
+    }
+
+    /* ---------- INPUTS ---------- */
 
     input, textarea {
         background: var(--surface) !important;
         border: 1px solid var(--border) !important;
-        border-radius: var(--radius) !important;
+        border-radius: var(--radius-sm) !important;
         color: var(--text) !important;
     }
 
@@ -196,30 +208,31 @@ st.markdown(
 
     .stTextInput label, .stNumberInput label, .stSelectbox label,
     .stTextArea label {
-        font-size: 0.8rem !important;
+        font-size: 0.78rem !important;
         font-weight: 500 !important;
         color: var(--text-muted) !important;
     }
 
-    /* ---------- SELECT / DROPDOWN (incl. portal popover) ---------- */
+    /* ---------- SELECT / DROPDOWN ---------- */
 
     div[data-baseweb="select"] > div {
         background: var(--surface) !important;
         border-color: var(--border) !important;
         color: var(--text) !important;
-        border-radius: var(--radius) !important;
+        border-radius: var(--radius-sm) !important;
     }
 
     div[data-baseweb="popover"] ul[role="listbox"],
     div[data-baseweb="menu"] {
         background: var(--surface-raised) !important;
         border: 1px solid var(--border) !important;
+        border-radius: var(--radius-sm) !important;
     }
 
     li[role="option"] { background: var(--surface-raised) !important; color: var(--text) !important; }
 
     li[role="option"]:hover, li[aria-selected="true"] {
-        background: var(--surface) !important;
+        background: var(--accent-soft) !important;
         color: var(--accent) !important;
     }
 
@@ -234,40 +247,35 @@ st.markdown(
     .main div[data-testid="stRadio"] > div[role="radiogroup"] label {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 8px 14px;
+        border-radius: 999px;
+        padding: 7px 14px;
         margin: 0 !important;
         cursor: pointer;
+        font-size: 0.85rem;
     }
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
-        background: var(--accent);
+        background: var(--accent-soft);
         border-color: var(--accent);
     }
 
     .main div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) p {
-        color: var(--accent-text) !important;
+        color: var(--accent) !important;
+        font-weight: 600;
     }
 
     .main div[data-testid="stRadio"] input[type="radio"] { display: none; }
-
-    /* ---------- TABS ---------- */
-
-    button[data-baseweb="tab"] { font-weight: 500; font-size: 0.9rem; color: var(--text-muted) !important; }
-    button[data-baseweb="tab"][aria-selected="true"] { color: var(--text) !important; }
-    div[data-baseweb="tab-highlight"] { background-color: var(--accent) !important; }
-    div[data-baseweb="tab-border"] { background-color: var(--border) !important; }
 
     /* ---------- PROGRESS ---------- */
 
     .stProgress > div > div > div { background: var(--accent) !important; }
     .stProgress > div > div { background: var(--border) !important; }
-    .progress-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+    .progress-label { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; }
 
     /* ---------- ALERTS ---------- */
 
     div[data-testid="stAlert"] {
-        border-radius: var(--radius);
+        border-radius: var(--radius-md);
         border: 1px solid var(--border);
         background: var(--surface) !important;
     }
@@ -279,8 +287,8 @@ st.markdown(
     .ring-row {
         display: flex;
         justify-content: space-between;
-        gap: 8px;
-        margin: 4px 0 8px 0;
+        gap: 6px;
+        margin: 6px 0 4px 0;
     }
 
     .ring-item {
@@ -291,14 +299,14 @@ st.markdown(
     }
 
     .ring {
-        width: 68px;
-        height: 68px;
+        width: 64px;
+        height: 64px;
         border-radius: 50%;
         background: conic-gradient(var(--accent) calc(var(--pct) * 360deg), var(--border) 0deg);
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 6px;
+        padding: 5px;
     }
 
     .ring-inner {
@@ -311,25 +319,27 @@ st.markdown(
         justify-content: center;
     }
 
-    .ring-value { font-weight: 600; font-size: 0.8rem; color: var(--text); }
-    .ring-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; font-weight: 500; }
-    .ring-target { font-size: 0.65rem; color: var(--text-faint); }
+    .ring-value { font-weight: 700; font-size: 0.78rem; color: var(--text); }
+    .ring-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; font-weight: 500; }
+    .ring-target { font-size: 0.62rem; color: var(--text-faint); }
 
     /* ---------- HISTORY STRIP ---------- */
 
     .st-key-history_strip [data-testid="column"] { padding: 0 3px; }
 
     .st-key-history_strip .stButton > button {
-        min-height: 56px;
+        min-height: 52px;
+        border-radius: var(--radius-sm);
         white-space: pre-line;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         line-height: 1.3;
     }
 
-    /* ---------- MAIN NAV — top on desktop, fixed bottom on mobile ---------- */
+    /* ---------- BOTTOM TAB BAR ---------- */
 
     .st-key-main_nav div[role="radiogroup"] {
-        justify-content: center;
+        justify-content: space-around;
+        gap: 0 !important;
     }
 
     .st-key-main_nav div[role="radiogroup"] label {
@@ -337,6 +347,33 @@ st.markdown(
         text-align: center;
         justify-content: center;
         display: flex;
+        background: transparent !important;
+        border: none !important;
+        border-radius: var(--radius-sm) !important;
+        padding: 6px 4px !important;
+    }
+
+    .st-key-main_nav div[role="radiogroup"] label p {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        font-size: 0.68rem !important;
+        color: var(--text-muted) !important;
+    }
+
+    .st-key-main_nav div[role="radiogroup"] label span[data-testid="stIconMaterial"] {
+        font-size: 1.3rem !important;
+        color: var(--text-muted) !important;
+    }
+
+    .st-key-main_nav div[role="radiogroup"] label:has(input:checked) {
+        background: var(--accent-soft) !important;
+    }
+
+    .st-key-main_nav div[role="radiogroup"] label:has(input:checked) p,
+    .st-key-main_nav div[role="radiogroup"] label:has(input:checked) span[data-testid="stIconMaterial"] {
+        color: var(--accent) !important;
     }
 
     @media (max-width: 768px) {
@@ -353,12 +390,7 @@ st.markdown(
             margin: 0 !important;
         }
 
-        .block-container {
-            padding-top: 2.5rem;
-            padding-bottom: 5.5rem;
-        }
-
-        h1 { font-size: 2rem !important; }
+        .block-container { padding-bottom: 92px; }
     }
 
     </style>
@@ -385,11 +417,6 @@ if "user" not in st.session_state:
 
 
 def _persist_session(session):
-    """Stores the refresh token in a long-lived cookie so a dropped
-    connection or full page reload (common on mobile — backgrounding
-    the browser, locking the phone) can silently restore the login
-    instead of bouncing back to the login screen."""
-
     cookie_manager.set(
         COOKIE_NAME,
         session.refresh_token,
@@ -406,7 +433,7 @@ def _clear_session_cookie():
 
 
 # ============================================================
-# RESTORE SESSION FROM COOKIE (if we don't already have one)
+# RESTORE SESSION FROM COOKIE
 # ============================================================
 
 if st.session_state.user is None:
@@ -438,7 +465,7 @@ def login_screen():
         """
         <div style="max-width:380px; margin:64px auto 32px auto; text-align:center;">
             <h1 style="margin-bottom:4px;">Macro</h1>
-            <p style="color:#8B92AC; font-size:0.9rem;">Track what you eat.</p>
+            <p style="color:#9298B0; font-size:0.9rem;">Track what you eat.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -451,7 +478,7 @@ def login_screen():
         email = st.text_input("Email", key="login_email")
         password = st.text_input("Password", type="password", key="login_password")
 
-        if st.button("Log in", type="primary", use_container_width=True):
+        if st.button("Log in", type="primary", use_container_width=True, icon=":material/login:"):
 
             try:
                 response = supabase.auth.sign_in_with_password(
@@ -470,7 +497,7 @@ def login_screen():
         email = st.text_input("Email", key="signup_email")
         password = st.text_input("Password", type="password", key="signup_password")
 
-        if st.button("Create account", use_container_width=True):
+        if st.button("Create account", use_container_width=True, icon=":material/person_add:"):
 
             try:
                 response = supabase.auth.sign_up({"email": email, "password": password})
@@ -498,12 +525,6 @@ if st.session_state.user is None:
 
 
 user_id = st.session_state.user.id
-
-# Profiles table isn't pre-populated with an empty row anymore — an
-# insert with only `id` set fails immediately if any other column in
-# `profiles` is NOT NULL without a default, which was likely the
-# actual cause of goals silently failing to save. A row now only gets
-# written the first time the person actually saves their goals.
 profile = get_profile(user_id) or {}
 
 
@@ -511,20 +532,20 @@ profile = get_profile(user_id) or {}
 # HEADER
 # ============================================================
 
-h1, h2, h3 = st.columns([3, 1.3, 1.1])
+h1, h2, h3 = st.columns([3, 1.1, 1.1])
 
 with h1:
     st.markdown("### Macro")
     st.caption(st.session_state.user.email)
 
 with h2:
-    if st.button("Add / Scan", use_container_width=True):
+    if st.button("Add", use_container_width=True, icon=":material/add:"):
         st.session_state.pop("selected_product", None)
         st.query_params["page"] = "Add food"
         st.rerun()
 
 with h3:
-    if st.button("Log out", use_container_width=True):
+    if st.button("Log out", use_container_width=True, icon=":material/logout:"):
         try:
             supabase.auth.sign_out()
         except Exception:
@@ -538,10 +559,19 @@ st.divider()
 
 
 # ============================================================
-# NAVIGATION
+# NAVIGATION — single tab bar, icon + label, pinned to bottom
+# on mobile via CSS above. This is the ONLY nav in the app;
+# make sure the pages/ folder is deleted so Streamlit doesn't
+# also render its own sidebar nav on top of this.
 # ============================================================
 
 PAGE_NAMES = ["Dashboard", "Add food", "Goals"]
+
+NAV_ICONS = {
+    "Dashboard": "space_dashboard",
+    "Add food": "add_circle",
+    "Goals": "flag",
+}
 
 query_page = st.query_params.get("page", "Dashboard")
 default_index = PAGE_NAMES.index(query_page) if query_page in PAGE_NAMES else 0
@@ -553,13 +583,12 @@ with st.container(key="main_nav"):
         index=default_index,
         horizontal=True,
         label_visibility="collapsed",
+        format_func=lambda name: f":material/{NAV_ICONS[name]}:\n\n{name}",
         key="nav_radio",
     )
 
 if page != query_page:
     st.query_params["page"] = page
-
-st.write("")
 
 
 # ============================================================
