@@ -36,7 +36,7 @@ def render_product_result(product, key, recent=False):
             )
 
         with c2:
-            if st.button("Add", key=key, type="primary"):
+            if st.button("Add", key=key, type="primary", icon=":material/add:"):
                 clicked = True
 
     return clicked
@@ -67,5 +67,5 @@ def render_log_row(item, on_remove):
         st.write(f'{float(item.get("calories") or 0):.0f} kcal')
 
     with cols[3]:
-        if st.button("Remove", key=f"remove_{item['id']}"):
+        if st.button("", key=f"remove_{item['id']}", icon=":material/close:"):
             on_remove(item["id"])
